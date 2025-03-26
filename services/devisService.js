@@ -36,7 +36,7 @@ const envoyerDevis = async (id_demande) => {
         }));
 
         // Insérer les pièces nécessaires dans DevisPiece
-        const devisPieces = await Promise.all(detailsDemande.map(async (detail) => {
+        const devisPiecesNested  = await Promise.all(detailsDemande.map(async (detail) => {
             const pieces = await PieceSousService.find({ id_sous_service: detail.id_sous_service });
         
             return await Promise.all(pieces.map(async (piece) => {
@@ -55,6 +55,8 @@ const envoyerDevis = async (id_demande) => {
                 });
             }));
         }));
+
+        const devisPieces = devisPiecesNested.flat();
 
         // Mettre à jour le statut en "Envoyé"
         demande.statut = 'Envoyé';
