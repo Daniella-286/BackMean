@@ -1,14 +1,22 @@
 const { getReservationsConfirmeesParClient , soumettreReservation, getReservationsClient , verifierReservationsNonConfirmees, validerReservationParManager , confirmerReservation , annulerReservation , getReservationsEnAttenteValidationManager } = require('../services/reservationService');
+const deadlineService = require('../services/deadlineService');
 
 const soumettreReservationController = async (req, res) => {
   try {
-    const { id_parking, id_vehicule, date_debut, date_fin} = req.body;
-    const id_client = req.user.id;;
+    const { id_parking, id_vehicule, date_debut, date_fin } = req.body;
+    const id_client = req.user.id;
+
+    // Récupérer les délais de confirmation
+    const deadlines = await deadlineService.getAllDeadlines();
+    const deadline_resa = deadlines.deadline_resa; // Nombre de jours autorisés pour confirmer
 
     // Soumettre la réservation
-    const reservation = await soumettreReservation(id_parking, id_client , id_vehicule, date_debut, date_fin);
+    const reservation = await soumettreReservation(id_parking, id_client, id_vehicule, date_debut, date_fin);
 
-    res.status(201).json({ message: 'Réservation soumise avec succès.', reservation });
+    res.status(201).json({ 
+      message: `Votre réservation est enregistrée. Vous avez ${deadline_resa} jours pour la confirmer.`,
+      reservation 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
