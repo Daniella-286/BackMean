@@ -70,7 +70,7 @@ const getReservationsClient = async (id_client, date_debut, date_fin) => {
       statut: "En attente",
       date_limite_confirmation : { $gte: date_debut, $lte: date_fin }
     })
-      .populate("id_parking", "nom adresse") // Infos du parking
+      .populate("id_parking", "numero")
       .populate("id_vehicule", "marque modele immatriculation") // Infos du véhicule
       .sort({ date_debut: -1 }); // Trier par date décroissante (plus récente en premier)
 
