@@ -111,7 +111,7 @@ const getReservationsConfirmeesParClient = async (id_client) => {
   try {
     const reservations = await ReservationParking.find({ 
       id_client: id_client, 
-      statut: 'Confirmé' 
+      statut: 'Validé' 
     })
     .populate('id_vehicule') // Récupère les infos du véhicule
     .populate('id_parking');  // Récupère les infos du parking
