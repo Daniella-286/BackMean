@@ -1,4 +1,4 @@
-const Deadline = require('../models/deadline');
+const Deadline = require('../models/Deadline');
 const RendezVous = require('../models/RendezVous');
 
 const prendreRendezVous = async (id_client, id_demande, date_rdv) => {
