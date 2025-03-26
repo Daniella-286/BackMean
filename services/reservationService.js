@@ -1,6 +1,6 @@
 const ReservationParking = require('../models/Reservation');
 const Parking = require('../models/Parking');
-const Deadline = require('../models/deadline');
+const Deadline = require('../models/Deadline');
 
 const soumettreReservation = async (id_parking, id_client , id_vehicule, date_debut, date_fin) => {
   try {
