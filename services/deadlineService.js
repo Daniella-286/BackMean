@@ -1,4 +1,4 @@
-const Deadline = require('../models/deadline');
+const Deadline = require('../models/Deadline');
 
 // Ajouter un deadline
 const addDeadline = async (data) => {
