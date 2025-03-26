@@ -15,7 +15,7 @@ router.get('/confirmees', verifyToken, getReservationsConfirmeesParClientControl
 
 router.put('/:id_reservation/confirmer', confirmerReservationController);
 
-router.put('/:id_reservation/valider', verifyToken , checkManagerRole , validerReservationController);
+router.put('/:id_reservation/valider', validerReservationController);
 
 router.put('/:id_reservation/annuler', annulerReservationController);
 
