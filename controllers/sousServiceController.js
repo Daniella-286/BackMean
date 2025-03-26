@@ -59,8 +59,6 @@ exports.deleteSousService = async (req, res) => {
 exports.getSousServicesByService = async (req, res) => {
   try {
       const { idService } = req.params; // Récupère l'ID du service depuis l'URL
-      console.log("ID Service reçu :", idService); // Vérifie si l'ID est bien reçu
-      
       const sousServices = await SousService.find({ id_service: idService });
 
       if (!sousServices.length) {

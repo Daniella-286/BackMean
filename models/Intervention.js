@@ -5,8 +5,9 @@ const InterventionSchema = new mongoose.Schema({
   id_vehicule: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicule', required: true },
   id_mecanicien: { type: mongoose.Schema.Types.ObjectId, ref: 'Mecanicien', required: true },
   date_intervention: { type: Date, required: true },
-  duree_reparation: { type: Number, required: true },
-  avancement: { type: Number, enum: [1, 5, 10], default: 1 } // 1=Début, 5=En cours, 10=Terminé
+  duree_reparation: { type: Number, required: true }, // En heures
+  date_fin_intervention: { type: Date, required: true }, // Ajout du champ
+  avancement: { type: String, enum: ['Planifié', 'Début', 'En cours', 'Terminé'], default: 'Planifié' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Intervention', InterventionSchema);

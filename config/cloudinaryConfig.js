@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
-const multerStorageCloudinary = require('multer-storage-cloudinary').CloudinaryStorage;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 // Configuration Cloudinary
 cloudinary.config({
@@ -9,15 +9,19 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configurer Multer pour Cloudinary
-const storage = new multerStorageCloudinary({
+// Stockage des images des services
+const serviceStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'services',  // Dossier où tes images seront stockées
+    folder: 'services', // Stockage dans le dossier "services"
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
   },
 });
 
-const upload = multer({ storage });
+// Middleware Multer pour l'upload des images des services
+const uploadServiceImage = multer({ storage: serviceStorage }).single('image');
 
-module.exports = { cloudinary, upload };
+const storage = multer.memoryStorage();
+const uploadDevisImage = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } }).array('images', 5);
+
+module.exports = { cloudinary, uploadServiceImage, uploadDevisImage };

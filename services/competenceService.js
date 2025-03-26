@@ -1,6 +1,5 @@
 const Competence = require('../models/Competence');
 
-// Ajouter une nouvelle compétence
 const addCompetence = async (competenceData) => {
   try {
     const competence = new Competence(competenceData);
@@ -11,7 +10,6 @@ const addCompetence = async (competenceData) => {
   }
 };
 
-// Récupérer toutes les compétences
 const getAllCompetences = async () => {
   try {
     return await Competence.find();
@@ -20,7 +18,6 @@ const getAllCompetences = async () => {
   }
 };
 
-// Récupérer une compétence par son ID
 const getCompetenceById = async (id) => {
   try {
     return await Competence.findById(id);
@@ -29,7 +26,6 @@ const getCompetenceById = async (id) => {
   }
 };
 
-// Mettre à jour une compétence
 const updateCompetence = async (id, competenceData) => {
   try {
     return await Competence.findByIdAndUpdate(id, competenceData, { new: true });
@@ -38,7 +34,6 @@ const updateCompetence = async (id, competenceData) => {
   }
 };
 
-// Supprimer une compétence
 const deleteCompetence = async (id) => {
   try {
     return await Competence.findByIdAndDelete(id);

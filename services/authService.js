@@ -15,8 +15,10 @@ const generateToken = (user, role) => {
     return jwt.sign(
         { id: user._id, email: user.email, role: role },
         process.env.JWT_SECRET,
-        { expiresIn: "3h" } // Durée de validité 1 heure
+        { expiresIn: "48h" } // Durée de validité 1 heure
     );
 };
+
+
 
 module.exports = { hashPassword, comparePassword, generateToken };

@@ -1,10 +1,12 @@
-// routes/vehiculeRoutes.js
 const express = require('express');
 const router = express.Router();
-const { ajouterVehicule } = require('../controllers/vehiculeController');
-const verifyToken = require('../middleware/authMiddleware'); // Le middleware de vérification du token
+const { listerVehiculesController , ajouterVehiculeController } = require('../controllers/vehiculeController'); // IMPORTATION CORRECTE
+const verifyToken = require('../middleware/authMiddleware'); 
 
 // Route protégée pour ajouter un véhicule
-router.post('/', verifyToken, ajouterVehicule); // Le middleware `verifyToken` s'assure que l'utilisateur est authentifié
+router.post('/ajouter-vehicules', verifyToken , ajouterVehiculeController); 
+
+// Route pour lister les véhicules d'un client connecté
+router.get('/', verifyToken , listerVehiculesController);
 
 module.exports = router;

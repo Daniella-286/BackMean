@@ -1,10 +1,10 @@
 const serviceService = require('../services/serviceService');
-const { cloudinary, upload } = require('../config/cloudinaryConfig'); // Importer la configuration de Cloudinary
+const { cloudinary, uploadServiceImage } = require('../config/cloudinaryConfig'); // Importer la configuration de Cloudinary
 const Service = require('../models/Service');
 const SousService = require('../models/SousService');
 
 // Middleware pour gérer l'upload de l'image avec Cloudinary
-exports.uploadImage = upload.single('image');  // Middleware pour gérer l'upload
+exports.uploadImage = uploadServiceImage;  // Corrige l'import ici // Middleware pour gérer l'upload
 
 exports.getAllServices = async (req, res) => {
   try {
@@ -53,7 +53,6 @@ exports.createService = async (req, res) => {
     res.status(400).json({ message: 'Erreur lors de la création du service', error });
   }
 };
-
 
 // Mettre à jour un service (avec image optionnelle)
 exports.updateService = async (req, res) => {

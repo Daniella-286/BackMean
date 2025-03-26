@@ -6,18 +6,36 @@ const passport = require('passport');
 
 // INSCRIPTION CLIENT
 const registerClient = async (req, res) => {
-    const { nom, prenom, date_naissance, genre, contact, adresse, email, mdp } = req.body;
-    try {
-        let client = await Client.findOne({ email });
-        if (client) return res.status(400).json({ message: 'Client déjà existant' });
+    const { nom, prenom, date_naissance, genre, contact, adresse, email, mdp, confirmMdp } = req.body;
 
+    try {
+        // Vérifier si les mots de passe correspondent
+        if (mdp !== confirmMdp) {
+            return res.status(400).json({ message: "Les mots de passe ne correspondent pas." });
+        }
+
+        // Vérifier la complexité du mot de passe
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(mdp)) {
+            return res.status(400).json({ 
+                message: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial." 
+            });
+        }
+
+        // Vérifier si l'email existe déjà
+        let client = await Client.findOne({ email });
+        if (client) return res.status(400).json({ message: "Client déjà existant." });
+
+        // Hacher le mot de passe
         const hashedPassword = await hashPassword(mdp);
         client = new Client({ nom, prenom, date_naissance, genre, contact, adresse, email, mdp: hashedPassword });
 
+        // Enregistrer le client
         await client.save();
-        res.status(201).json({ message: 'Client enregistré avec succès' });
+        res.status(201).json({ message: "Client enregistré avec succès." });
+
     } catch (err) {
-        res.status(500).json({ message: 'Erreur serveur', error: err.message });
+        res.status(500).json({ message: "Erreur serveur", error: err.message });
     }
 };
 
@@ -32,18 +50,36 @@ const loginClient = (req, res, next) => {
 
 // INSCRIPTION MANAGER (Créé manuellement)
 const registerManager = async (req, res) => {
-    const { email, mdp } = req.body;
-    try {
-        let manager = await Manager.findOne({ email });
-        if (manager) return res.status(400).json({ message: 'Manager déjà existant' });
+    const { email, mdp, confirmMdp } = req.body;
 
+    try {
+        // Vérifier si les mots de passe correspondent
+        if (mdp !== confirmMdp) {
+            return res.status(400).json({ message: "Les mots de passe ne correspondent pas." });
+        }
+
+        // Vérifier la complexité du mot de passe
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(mdp)) {
+            return res.status(400).json({ 
+                message: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial." 
+            });
+        }
+
+        // Vérifier si l'email existe déjà
+        let manager = await Manager.findOne({ email });
+        if (manager) return res.status(400).json({ message: "Manager déjà existant." });
+
+        // Hacher le mot de passe
         const hashedPassword = await hashPassword(mdp);
         manager = new Manager({ email, mdp: hashedPassword });
 
+        // Enregistrer le manager
         await manager.save();
-        res.status(201).json({ message: 'Manager enregistré avec succès' });
+        res.status(201).json({ message: "Manager enregistré avec succès." });
+
     } catch (err) {
-        res.status(500).json({ message: 'Erreur serveur', error: err.message });
+        res.status(500).json({ message: "Erreur serveur", error: err.message });
     }
 };
 
@@ -54,41 +90,53 @@ const loginManager = (req, res, next) => {
 
         const token = generateToken(manager, 'manager');
         res.json({ message: 'Connexion réussie', token });
+
     })(req, res, next);
 };
 
 // INSCRIPTION MECANICIEN
 const registerMecanicien = async (req, res) => {
-    const { nom, prenom, id_competence, id_service, date_naissance, genre, contact, adresse, email, mdp } = req.body;
-    try {
-        let mecanicien = await Mecanicien.findOne({ email });
-        if (mecanicien) return res.status(400).json({ message: 'Mécanicien déjà existant' });
+    const { nom, prenom, id_competence, date_naissance, genre, contact, adresse, email, mdp, confirmMdp } = req.body;
 
+    try {
+        // Vérifier si les mots de passe correspondent
+        if (mdp !== confirmMdp) {
+            return res.status(400).json({ message: "Les mots de passe ne correspondent pas." });
+        }
+
+        // Vérifier la complexité du mot de passe
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(mdp)) {
+            return res.status(400).json({ 
+                message: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial." 
+            });
+        }
+
+        // Vérifier si l'email existe déjà
+        let mecanicien = await Mecanicien.findOne({ email });
+        if (mecanicien) return res.status(400).json({ message: "Mécanicien déjà existant." });
+
+        // Hacher le mot de passe
         const hashedPassword = await hashPassword(mdp);
         mecanicien = new Mecanicien({
-            nom, prenom, id_competence, id_service, date_naissance, genre, contact, adresse, email,
-            mdp: hashedPassword, statut: false
+            nom, 
+            prenom, 
+            id_competence, 
+            date_naissance, 
+            genre, 
+            contact, 
+            adresse, 
+            email,
+            mdp: hashedPassword, 
+            statut: false // En attente de validation par un manager
         });
 
+        // Enregistrer le mécanicien
         await mecanicien.save();
-        res.status(201).json({ message: 'Mécanicien enregistré, en attente de validation par un manager' });
-    } catch (err) {
-        res.status(500).json({ message: 'Erreur serveur', error: err.message });
-    }
-};
+        res.status(201).json({ message: "Mécanicien enregistré, en attente de validation par un manager." });
 
-// VALIDATION MECANICIEN PAR MANAGER
-const validateMecanicien = async (req, res) => {
-    try {
-        const mecanicien = await Mecanicien.findById(req.params.id);
-        if (!mecanicien) return res.status(404).json({ message: 'Mécanicien non trouvé' });
-
-        // Mettre à jour le statut du mécanicien pour valider son compte
-        mecanicien.statut = true;
-        await mecanicien.save();
-        res.json({ message: 'Mécanicien validé avec succès' });
     } catch (err) {
-        res.status(500).json({ message: 'Erreur serveur', error: err.message });
+        res.status(500).json({ message: "Erreur serveur", error: err.message });
     }
 };
 
@@ -110,8 +158,6 @@ const loginMecanicien = (req, res, next) => {
       res.json({ message: 'Connexion réussie', token });
     })(req, res, next);
   };
-  
-
 
 module.exports = {
     registerClient,
@@ -119,6 +165,5 @@ module.exports = {
     registerManager,
     loginManager,
     registerMecanicien,
-    validateMecanicien,
     loginMecanicien
 };
