@@ -1,6 +1,5 @@
 const { addCompetence, getAllCompetences, getCompetenceById, updateCompetence, deleteCompetence } = require('../services/competenceService');
 
-// Ajouter une compétence
 const createCompetence = async (req, res) => {
   try {
     const competence = await addCompetence(req.body);
@@ -10,7 +9,6 @@ const createCompetence = async (req, res) => {
   }
 };
 
-// Récupérer toutes les compétences
 const getCompetences = async (req, res) => {
   try {
     const competences = await getAllCompetences();
@@ -20,7 +18,6 @@ const getCompetences = async (req, res) => {
   }
 };
 
-// Récupérer une compétence par ID
 const getCompetence = async (req, res) => {
   try {
     const competence = await getCompetenceById(req.params.id);
@@ -33,7 +30,6 @@ const getCompetence = async (req, res) => {
   }
 };
 
-// Mettre à jour une compétence
 const updateCompetenceDetails = async (req, res) => {
   try {
     const updatedCompetence = await updateCompetence(req.params.id, req.body);
@@ -46,7 +42,6 @@ const updateCompetenceDetails = async (req, res) => {
   }
 };
 
-// Supprimer une compétence
 const deleteCompetenceRecord = async (req, res) => {
   try {
     const deletedCompetence = await deleteCompetence(req.params.id);

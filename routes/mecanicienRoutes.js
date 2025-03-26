@@ -1,8 +1,11 @@
 const express = require('express');
-const router = express.Router();
-const mecanicienController = require('../controllers/mecanicienController');
+const { getMecaniciensNonValidesController, validateMecanicienController } = require('../controllers/mecanicienController');
+const { checkManagerRole } = require('../middleware/roleMiddleware'); 
+const verifyToken = require('../middleware/authMiddleware');
 
-// Récupérer les mécaniciens dont l'inscription n'est pas validée
-router.get('/non-valides', mecanicienController.getMecaniciensNonValidesController);
+const router = express.Router();
+
+router.get("/non-valides", verifyToken, checkManagerRole, getMecaniciensNonValidesController);
+router.put("/valider/:id", verifyToken, checkManagerRole, validateMecanicienController);
 
 module.exports = router;

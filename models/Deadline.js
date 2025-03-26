@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 
 const DeadlineSchema = new mongoose.Schema({
-  deadline_rdv: { type: Number, required: true }, // durée limite pour confirmer un rendez-vous
-  deadline_resa: { type: Number, required: true } // durée limite pour confirmer une réservation
+  deadline_rdv: { type: Number, required: true }, // durée limite en jours pour confirmer un rendez-vous
+  deadline_resa: { type: Number, required: true } // durée limite en jours pour confirmer une réservation
 }, { timestamps: true });
 
-module.exports = mongoose.model('Deadline', DeadlineSchema);
+// Vérifier si le modèle existe déjà avant de le compiler
+module.exports = mongoose.models.Deadline || mongoose.model('Deadline', DeadlineSchema);

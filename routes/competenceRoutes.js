@@ -1,20 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const competenceController = require('../controllers/competenceController');
-
+const { createCompetence , getCompetences , getCompetence , updateCompetenceDetails , deleteCompetenceRecord  } = require('../controllers/competenceController');
+const verifyToken = require('../middleware/authMiddleware');
+const { checkManagerRole } = require('../middleware/roleMiddleware'); // Middleware pour vérifier que l'utilisateur est un manager
+ 
 // Ajouter une compétence
-router.post('/', competenceController.createCompetence);
+router.post('/', verifyToken , checkManagerRole , createCompetence);
 
 // Récupérer toutes les compétences
-router.get('/', competenceController.getCompetences);
+router.get('/', getCompetences);
 
 // Récupérer une compétence par ID
-router.get('/:id', competenceController.getCompetence);
+router.get('/:id', verifyToken , checkManagerRole , getCompetence);
 
 // Mettre à jour une compétence
-router.put('/:id', competenceController.updateCompetenceDetails);
+router.put('/:id', verifyToken , checkManagerRole , updateCompetenceDetails);
 
 // Supprimer une compétence
-router.delete('/:id', competenceController.deleteCompetenceRecord);
+router.delete('/:id', verifyToken, checkManagerRole , deleteCompetenceRecord);
 
 module.exports = router;

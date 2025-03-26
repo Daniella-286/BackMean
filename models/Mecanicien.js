@@ -4,7 +4,7 @@ const MecanicienSchema = new mongoose.Schema({
   nom: { type: String, required: true },
   prenom: { type: String, required: true },
   id_competence: { type: mongoose.Schema.Types.ObjectId, ref: 'Competence', required: true },
-  id_service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+  id_service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service'},
   date_naissance: { type: Date, required: true },
   genre: { type: String, required: true },
   contact: { type: String, required: true },
