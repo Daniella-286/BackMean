@@ -1,4 +1,4 @@
-const SeuilStock = require('../models/SeuilStock');
+const SeuilStock = require('../models/Seuilstock');
 
 // Ajouter un seuil de stock
 const addSeuilStock = async (data) => {
