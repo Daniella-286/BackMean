@@ -18,6 +18,6 @@ router.get('/mes-devis', verifyToken , listerDemandesClientEnvoye);
 router.get('/demandes-en-attente', verifyToken , checkManagerRole , afficherDemandesEnAttente);
 
 // Endpoint pour envoyer un devis
-router.put('/envoyer-devis/:id_demande', verifyToken , checkManagerRole , envoyerDevisController);
+router.put('/envoyer-devis/:id_demande', envoyerDevisController);
 
 module.exports = router;
