@@ -158,7 +158,7 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
         if (!date_debut || !date_fin) {
             const today = new Date();
             date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si date_fin est vide, on prend aujourd'hui
-            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // 30 jours avant
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // 7 jours avant
 
             date_debut.setUTCHours(0, 0, 0, 0);
             date_fin.setUTCHours(23, 59, 59, 999);
@@ -167,12 +167,10 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
             date_fin = new Date(date_fin);
         }
 
-        // Ajout de 5 jours à la date de fin
-        date_fin.setDate(date_fin.getDate() + 5);
-
-        // Création du filtre
+        // Création du filtre avec statut "Validé"
         const filter = {
             id_client,
+            statut: "Validé", // Seuls les rendez-vous validés
             date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
         };
 
@@ -180,10 +178,11 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
         const rendezVousList = await RendezVous.find(filter)
             .populate('id_client', 'nom email')
             .populate('id_demande', 'description probleme_decrit')
+            .sort({ date_prise_rendez_vous: -1 })
             .exec(); 
 
         if (rendezVousList.length === 0) {
-            return { success: true, message: "Aucun rendez-vous trouvé pour cette période." };
+            return { success: true, message: "Aucun rendez-vous validé trouvé pour cette période." };
         }
 
         return { success: true, rendezVous: rendezVousList };
@@ -192,7 +191,6 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
     }
 };
 
-
 const confirmerRendezVous = async (id_rdv) => {
     try {
         const rendezVous = await RendezVous.findById(id_rdv);
@@ -200,8 +198,8 @@ const confirmerRendezVous = async (id_rdv) => {
             return { success: false, message: "Rendez-vous introuvable." };
         }
 
-        if (rendezVous.statut !== 'Validé') {
-            return { success: false, message: "Ce rendez-vous n'a pas encore été validé par le manager." };
+        if (rendezVous.statut !== 'Confirmé') {
+            return { success: false, message: "Ce rendez-vous a été déjà confirmé" };
         }
 
         const maintenant = new Date();
@@ -302,6 +300,48 @@ const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_r
     }
 };
 
+const fetchConfirmedRendezVousByClient = async (id_client, date_debut, date_fin) => {
+    try {
+        if (!id_client) {
+            return { success: false, message: "L'ID du client est requis." };
+        }
+
+        if (!date_debut || !date_fin) {
+            const today = new Date();
+            date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si vide, on prend aujourd'hui
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // Par défaut, 7 jours avant
+
+            date_debut.setUTCHours(0, 0, 0, 0);
+            date_fin.setUTCHours(23, 59, 59, 999);
+        } else {
+            date_debut = new Date(date_debut);
+            date_fin = new Date(date_fin);
+        }
+
+        // Création du filtre avec statut "Confirmé"
+        const filter = {
+            id_client,
+            statut: "Confirmé",
+            date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
+        };
+
+        // Recherche des rendez-vous et tri par date décroissante (les plus récents en premier)
+        const rendezVousList = await RendezVous.find(filter)
+            .populate('id_client', 'nom email')
+            .populate('id_demande', 'description probleme_decrit')
+            .sort({ date_prise_rendez_vous: -1 }) // -1 = ordre décroissant
+            .exec(); 
+
+        if (rendezVousList.length === 0) {
+            return { success: true, message: "Aucun rendez-vous confirmé trouvé pour cette période." };
+        }
+
+        return { success: true, rendezVous: rendezVousList };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+};
+
 //vu par le manager pour intervenir
 const fetchRendezVousConfirmes = async (date_debut, date_fin) => {
     try {
@@ -342,4 +382,4 @@ const fetchRendezVousConfirmes = async (date_debut, date_fin) => {
     }
 };
 
-module.exports = { rendezVousParId , fetchRendezVousEnAttente , fetchRendezVousClient ,fetchRendezVousConfirmes , prendreRendezVous , modifierRendezVous, validerRendezVous , confirmerRendezVous ,annulerRendezVous , marquerRendezVousNonDisponible };
+module.exports = { rendezVousParId , fetchRendezVousEnAttente , fetchConfirmedRendezVousByClient , fetchRendezVousClient ,fetchRendezVousConfirmes , prendreRendezVous , modifierRendezVous, validerRendezVous , confirmerRendezVous ,annulerRendezVous , marquerRendezVousNonDisponible };
