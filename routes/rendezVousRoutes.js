@@ -27,10 +27,10 @@ router.put('/annuler/:id_rdv', verifyToken, annulerRendezVousController);
 router.put('/confirmer/:id_rdv', verifyToken, confirmerRendezVousController);
 
 // Route pour que le manager valide un rendez-vous
-router.put('/valider/:id_rdv', verifyToken, checkManagerRole , validerRendezVousController);
+router.put('/valider/:id_rdv', validerRendezVousController);
 
 // Route pour que le manager marque un rendez-vous comme "Non disponible"
-router.put('/indisponible/:id_rdv', verifyToken, checkManagerRole , marquerRendezVousNonDisponibleController);
+router.put('/indisponible/:id_rdv', marquerRendezVousNonDisponibleController);
 
 router.get('/:id_rdv', rendezVousParIdController);
 
