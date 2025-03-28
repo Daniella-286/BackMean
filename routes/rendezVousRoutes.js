@@ -18,13 +18,13 @@ router.get('/en-attente', verifyToken, checkManagerRole, getRendezVousEnAttente)
 router.get('/confirmes', verifyToken, checkManagerRole, getRendezVousConfirmes);
 
 // Route pour que le client puisse modifier son rendez-vous
-router.put('/modifier/:id_rdv', verifyToken, modifierRendezVousController);
+router.put('/modifier/:id_rdv', modifierRendezVousController);
 
 // Route pour que le client annule un rendez-vous
-router.put('/annuler/:id_rdv', verifyToken, annulerRendezVousController);
+router.put('/annuler/:id_rdv', annulerRendezVousController);
 
 // Route pour que le client confirme un rendez-vous
-router.put('/confirmer/:id_rdv', verifyToken, confirmerRendezVousController);
+router.put('/confirmer/:id_rdv', confirmerRendezVousController);
 
 // Route pour que le manager valide un rendez-vous
 router.put('/valider/:id_rdv', validerRendezVousController);
