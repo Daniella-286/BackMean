@@ -1,4 +1,4 @@
-const { rendezVousParId , fetchRendezVousEnAttente , fetchRendezVousConfirmes ,prendreRendezVous , confirmerRendezVous , fetchRendezVousClient ,modifierRendezVous, annulerRendezVous , validerRendezVous , marquerRendezVousNonDisponible } = require('../services/rendezVousService');
+const { rendezVousParId , fetchRendezVousEnAttente , fetchRendezVousConfirmes ,fetchConfirmedRendezVousByClient,prendreRendezVous , confirmerRendezVous , fetchRendezVousClient ,modifierRendezVous, annulerRendezVous , validerRendezVous , marquerRendezVousNonDisponible } = require('../services/rendezVousService');
 
 const creerRendezVous = async (req, res) => {
     try {
@@ -120,6 +120,23 @@ const modifierRendezVousController = async (req, res) => {
     }
 };
 
+const getConfirmedRendezVousByClientController = async (req, res) => {
+    try {
+        const id_client = req.user.id; // ID du client connecté (extrait du token)
+        const { date_debut, date_fin } = req.query;
+
+        const result = await fetchConfirmedRendezVousByClient(id_client, date_debut, date_fin);
+
+        if (!result.success) {
+            return res.status(400).json({ success: false, message: result.message });
+        }
+
+        return res.status(200).json({ success: true, data: result.rendezVous });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 //VU PAR LE MANGER pour intervenir
 const getRendezVousConfirmes = async (req, res) => {
     try {
@@ -132,4 +149,4 @@ const getRendezVousConfirmes = async (req, res) => {
     }
 };
 
-module.exports = { rendezVousParIdController , getRendezVousEnAttente, getRendezVousClient , getRendezVousConfirmes ,creerRendezVous , modifierRendezVousController , confirmerRendezVousController , annulerRendezVousController , validerRendezVousController , marquerRendezVousNonDisponibleController  };
+module.exports = { rendezVousParIdController , getRendezVousEnAttente, getConfirmedRendezVousByClientController , getRendezVousClient , getRendezVousConfirmes ,creerRendezVous , modifierRendezVousController , confirmerRendezVousController , annulerRendezVousController , validerRendezVousController , marquerRendezVousNonDisponibleController  };
