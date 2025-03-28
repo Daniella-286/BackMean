@@ -257,7 +257,7 @@ const annulerRendezVous = async (id_rdv) => {
     }
 };
 
-const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_rdv) => {
+const modifierRendezVous = async (id_rdv, nouvelle_date_rdv) => {
     try {
         const rendezVous = await RendezVous.findById(id_rdv);
 
@@ -285,8 +285,6 @@ const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_r
         dateLimiteConfirmation.setUTCHours(23, 59, 59, 999);
 
         // Mettre à jour les valeurs du rendez-vous
-        rendezVous.id_client = id_client;
-        rendezVous.id_demande = id_demande;
         rendezVous.date_rendez_vous = nouvelle_date_rdv;
         rendezVous.date_prise_rendez_vous = datePriseRdv;
         rendezVous.date_limite_confirmation = dateLimiteConfirmation;
