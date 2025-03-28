@@ -198,10 +198,6 @@ const confirmerRendezVous = async (id_rdv) => {
             return { success: false, message: "Rendez-vous introuvable." };
         }
 
-        if (rendezVous.statut !== 'Confirmé') {
-            return { success: false, message: "Ce rendez-vous a été déjà confirmé" };
-        }
-
         const maintenant = new Date();
 
         if (maintenant > rendezVous.date_limite_confirmation) {
