@@ -106,14 +106,13 @@ const annulerRendezVousController = async (req, res) => {
 const modifierRendezVousController = async (req, res) => {
     try {
         const { id_rdv } = req.params;
-        const id_client = req.user.id; 
-        const { id_demande, date_rendez_vous } = req.body;
+        const { date_rendez_vous } = req.body;
 
-        if (!id_client || !id_demande || !date_rendez_vous) {
+        if (!date_rendez_vous) {
             return res.status(400).json({ message: "Les champs id_client, id_demande et date_rendez_vous sont requis." });
         }
 
-        const result = await modifierRendezVous(id_rdv, id_client, id_demande, date_rendez_vous);
+        const result = await modifierRendezVous(id_rdv, date_rendez_vous);
         res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
         res.status(500).json({ message: "Erreur serveur", error: error.message });
