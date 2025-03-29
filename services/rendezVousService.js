@@ -262,7 +262,7 @@ const modifierRendezVous = async (id_rdv, nouvelle_date_rdv) => {
         }
 
         // Vérifier si le rendez-vous est dans un état modifiable
-        if (rendezVous.statut !== 'Validé' || rendezVous.statut !== 'Confirmé') {
+        if (rendezVous.statut !== 'Validé' && rendezVous.statut !== 'Confirmé') {
             return { success: false, message: "Vous ne pouvez modifier que les rendez-vous marqués comme 'Validé' ou 'Confirmé'." };
         }
 
