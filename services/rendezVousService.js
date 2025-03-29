@@ -48,14 +48,13 @@ const rendezVousParId = async (id_rdv) => {
     }
 };
 
-
 //VU PAR LE MANGER
-const fetchRendezVousEnAttente = async (date_debut, date_fin) => {
+const fetchRendezVousEnAttente = async (date_debut, date_fin, page = 1, limit = 10) => {
     try {
         if (!date_debut || !date_fin) {
             const today = new Date();
             date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si date_fin est vide, on prend aujourd'hui
-            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // 30 jours avant
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // 7 jours avant
 
             date_debut.setUTCHours(0, 0, 0, 0);
             date_fin.setUTCHours(23, 59, 59, 999);
@@ -64,25 +63,40 @@ const fetchRendezVousEnAttente = async (date_debut, date_fin) => {
             date_fin = new Date(date_fin);
         }
 
-        // Ajout de 5 jours à la date de fin comme dans la logique précédente
-        date_fin.setDate(date_fin.getDate() + 5);
-
         // Filtre avec les nouvelles dates
         const filter = {
             statut: 'En attente',
             date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
         };
 
+        // Calculer le nombre d'éléments à ignorer (skip) basé sur la page
+        const skip = (page - 1) * limit;
+
+        // Récupérer les rendez-vous en attente avec pagination
         const rendezVousList = await RendezVous.find(filter)
+            .skip(skip)
+            .limit(limit)
             .populate('id_client', 'nom email')
             .populate('id_demande', 'description probleme_decrit')
+            .sort({ date_prise_rendez_vous: -1 })
             .exec(); // Ajout de exec()
+
+        // Compter le nombre total de rendez-vous en attente
+        const totalRendezVous = await RendezVous.countDocuments(filter);
 
         if (rendezVousList.length === 0) {
             return { success: true, message: "Aucun rendez-vous en attente trouvé pour cette période." };
         }
 
-        return { success: true, rendezVous: rendezVousList };
+        // Retourner les rendez-vous avec les informations de pagination
+        return {
+            success: true,
+            rendezVous: rendezVousList,
+            total: totalRendezVous,
+            page,
+            limit,
+            totalPages: Math.ceil(totalRendezVous / limit) // Calcul du nombre total de pages
+        };
     } catch (error) {
         return { success: false, message: error.message };
     }
@@ -149,7 +163,7 @@ const marquerRendezVousNonDisponible = async (id_rdv) => {
 };
 
 //VU PAR LE Client
-const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
+const fetchRendezVousClient = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
     try {
         if (!id_client) {
             return { success: false, message: "L'ID du client est requis." };
@@ -158,7 +172,7 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
         if (!date_debut || !date_fin) {
             const today = new Date();
             date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si date_fin est vide, on prend aujourd'hui
-            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // 30 jours avant
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // 7 jours avant
 
             date_debut.setUTCHours(0, 0, 0, 0);
             date_fin.setUTCHours(23, 59, 59, 999);
@@ -167,41 +181,50 @@ const fetchRendezVousClient = async (id_client, date_debut, date_fin) => {
             date_fin = new Date(date_fin);
         }
 
-        // Ajout de 5 jours à la date de fin
-        date_fin.setDate(date_fin.getDate() + 5);
-
-        // Création du filtre
+        // Création du filtre avec statut "Validé"
         const filter = {
             id_client,
+            statut: "Validé", // Seuls les rendez-vous validés
             date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
         };
 
-        // Recherche des rendez-vous avec `populate`
+        // Calculer le nombre d'éléments à ignorer (skip) basé sur la page
+        const skip = (page - 1) * limit;
+
+        // Recherche des rendez-vous avec `populate` et pagination
         const rendezVousList = await RendezVous.find(filter)
+            .skip(skip)
+            .limit(limit)
             .populate('id_client', 'nom email')
             .populate('id_demande', 'description probleme_decrit')
             .exec(); 
 
+        // Compter le nombre total de rendez-vous validés pour calculer le nombre total de pages
+        const totalRendezVous = await RendezVous.countDocuments(filter);
+
         if (rendezVousList.length === 0) {
-            return { success: true, message: "Aucun rendez-vous trouvé pour cette période." };
+            return { success: true, message: "Aucun rendez-vous validé trouvé pour cette période." };
         }
 
-        return { success: true, rendezVous: rendezVousList };
+        // Retourner les rendez-vous avec les informations de pagination
+        return {
+            success: true,
+            rendezVous: rendezVousList,
+            total: totalRendezVous,
+            page,
+            limit,
+            totalPages: Math.ceil(totalRendezVous / limit) // Calcul du nombre total de pages
+        };
     } catch (error) {
         return { success: false, message: error.message };
     }
 };
-
 
 const confirmerRendezVous = async (id_rdv) => {
     try {
         const rendezVous = await RendezVous.findById(id_rdv);
         if (!rendezVous) {
             return { success: false, message: "Rendez-vous introuvable." };
-        }
-
-        if (rendezVous.statut !== 'Validé') {
-            return { success: false, message: "Ce rendez-vous n'a pas encore été validé par le manager." };
         }
 
         const maintenant = new Date();
@@ -239,10 +262,6 @@ const annulerRendezVous = async (id_rdv) => {
             return { success: false, message: "Ce rendez-vous a déjà été confirmé, vous ne pouvez plus l'annuler." };
         }
 
-        if (rendezVous.statut === 'Validé') {
-            return { success: false, message: "Ce rendez-vous a déjà été validé, vous ne pouvez plus l'annuler." };
-        }
-
         // Vérifier si le délai de confirmation est dépassé
         const maintenant = new Date();
         if (maintenant > rendezVous.date_limite_confirmation) {
@@ -259,7 +278,7 @@ const annulerRendezVous = async (id_rdv) => {
     }
 };
 
-const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_rdv) => {
+const modifierRendezVous = async (id_rdv, nouvelle_date_rdv) => {
     try {
         const rendezVous = await RendezVous.findById(id_rdv);
 
@@ -268,8 +287,12 @@ const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_r
         }
 
         // Vérifier si le rendez-vous est dans un état modifiable
-        if (rendezVous.statut !== 'Validé' || rendezVous.statut !== 'Confirmé') {
-            return { success: false, message: "Vous ne pouvez modifier que les rendez-vous marqués comme 'Validé' ou 'Confirmé'." };
+        if (rendezVous.statut === 'Validé') {
+            return { success: false, message: "Vous ne pouvez pas modifier ce rendez-vous , il est déjà validé par le garage" };
+        }
+
+        if (rendezVous.statut === 'Confirmé') {
+            return { success: false, message: "Vous ne pouvez pas modifier ce rendez-vous , vous l'avez déjà confirmé" };
         }
 
         // Récupérer la configuration des délais
@@ -287,8 +310,6 @@ const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_r
         dateLimiteConfirmation.setUTCHours(23, 59, 59, 999);
 
         // Mettre à jour les valeurs du rendez-vous
-        rendezVous.id_client = id_client;
-        rendezVous.id_demande = id_demande;
         rendezVous.date_rendez_vous = nouvelle_date_rdv;
         rendezVous.date_prise_rendez_vous = datePriseRdv;
         rendezVous.date_limite_confirmation = dateLimiteConfirmation;
@@ -302,13 +323,16 @@ const modifierRendezVous = async (id_rdv, id_client, id_demande, nouvelle_date_r
     }
 };
 
-//vu par le manager pour intervenir
-const fetchRendezVousConfirmes = async (date_debut, date_fin) => {
+const fetchConfirmedRendezVousByClient = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
     try {
+        if (!id_client) {
+            return { success: false, message: "L'ID du client est requis." };
+        }
+
         if (!date_debut || !date_fin) {
             const today = new Date();
-            date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si date_fin est vide, on prend aujourd'hui
-            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // 30 jours avant
+            date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si vide, on prend aujourd'hui
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // Par défaut, 7 jours avant
 
             date_debut.setUTCHours(0, 0, 0, 0);
             date_fin.setUTCHours(23, 59, 59, 999);
@@ -317,29 +341,149 @@ const fetchRendezVousConfirmes = async (date_debut, date_fin) => {
             date_fin = new Date(date_fin);
         }
 
-        // Ajout de 5 jours à la date de fin
-        date_fin.setDate(date_fin.getDate() + 5);
-
-        // Filtre avec la nouvelle gestion des dates
+        // Création du filtre avec statut "Confirmé"
         const filter = {
-            statut: 'Confirmé',
-            date_confirmation: { $gte: date_debut, $lte: date_fin }
+            id_client,
+            statut: "Confirmé",
+            date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
         };
 
-        // Recherche des rendez-vous confirmés
+        // Calculer l'offset (skip) pour la pagination
+        const skip = (page - 1) * limit;
+
+        // Recherche des rendez-vous confirmés avec `populate` et pagination
         const rendezVousList = await RendezVous.find(filter)
+            .skip(skip)
+            .limit(limit)
             .populate('id_client', 'nom email')
             .populate('id_demande', 'description probleme_decrit')
-            .exec(); // Ajout de exec()
+            .sort({ date_prise_rendez_vous: -1 }) // Tri par date décroissante
+            .exec();
+
+        // Compter le nombre total de rendez-vous confirmés pour calculer le nombre total de pages
+        const totalRendezVous = await RendezVous.countDocuments(filter);
 
         if (rendezVousList.length === 0) {
             return { success: true, message: "Aucun rendez-vous confirmé trouvé pour cette période." };
         }
 
-        return { success: true, rendezVous: rendezVousList };
+        // Retourner les rendez-vous avec les informations de pagination
+        return {
+            success: true,
+            rendezVous: rendezVousList,
+            total: totalRendezVous,
+            page,
+            limit,
+            totalPages: Math.ceil(totalRendezVous / limit) // Calcul du nombre total de pages
+        };
     } catch (error) {
         return { success: false, message: error.message };
     }
 };
 
-module.exports = { rendezVousParId , fetchRendezVousEnAttente , fetchRendezVousClient ,fetchRendezVousConfirmes , prendreRendezVous , modifierRendezVous, validerRendezVous , confirmerRendezVous ,annulerRendezVous , marquerRendezVousNonDisponible };
+const fetchRendezVousAttenteOuNonDispo = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
+    try {
+        if (!id_client) {
+            return { success: false, message: "L'ID du client est requis." };
+        }
+
+        if (!date_debut || !date_fin) {
+            const today = new Date();
+            date_fin = date_fin ? new Date(date_fin) : new Date(today);
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7));
+            date_debut.setUTCHours(0, 0, 0, 0);
+            date_fin.setUTCHours(23, 59, 59, 999);
+        } else {
+            date_debut = new Date(date_debut);
+            date_fin = new Date(date_fin);
+        }
+
+        const filter = {
+            id_client,
+            statut: { $in: ["En attente", "Non disponible"] },
+            date_prise_rendez_vous: { $gte: date_debut, $lte: date_fin }
+        };
+
+        const skip = (page - 1) * limit;
+
+        const rendezVousList = await RendezVous.find(filter)
+            .skip(skip)
+            .limit(limit)
+            .populate('id_client', 'nom email')
+            .populate('id_demande', 'description probleme_decrit')
+            .exec();
+
+        const totalRendezVous = await RendezVous.countDocuments(filter);
+
+        if (rendezVousList.length === 0) {
+            return { success: true, message: "Aucun rendez-vous en attente ou non disponible trouvé pour cette période." };
+        }
+
+        return {
+            success: true,
+            rendezVous: rendezVousList,
+            total: totalRendezVous,
+            page,
+            limit,
+            totalPages: Math.ceil(totalRendezVous / limit)
+        };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+};
+
+//vu par le manager pour intervenir
+const fetchRendezVousConfirmes = async (date_debut, date_fin, page = 1, limit = 10) => {
+    try {
+        if (!date_debut || !date_fin) {
+            const today = new Date();
+            date_fin = date_fin ? new Date(date_fin) : new Date(today); // Si date_fin est vide, on prend aujourd'hui
+            date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // Par défaut, 30 jours avant
+
+            date_debut.setUTCHours(0, 0, 0, 0);
+            date_fin.setUTCHours(23, 59, 59, 999);
+        } else {
+            date_debut = new Date(date_debut);
+            date_fin = new Date(date_fin);
+        }
+
+        // Filtre avec la gestion des dates
+        const filter = {
+            statut: 'Confirmé',
+            date_confirmation: { $gte: date_debut, $lte: date_fin }
+        };
+
+        // Calculer l'offset (skip) pour la pagination
+        const skip = (page - 1) * limit;
+
+        // Recherche des rendez-vous confirmés avec `populate` et pagination
+        const rendezVousList = await RendezVous.find(filter)
+            .skip(skip)
+            .limit(limit)
+            .populate('id_client', 'nom email')
+            .populate('id_demande', 'description probleme_decrit')
+            .exec(); // Ajout de exec()
+
+        // Compter le nombre total de rendez-vous confirmés pour calculer le nombre total de pages
+        const totalRendezVous = await RendezVous.countDocuments(filter);
+
+        if (rendezVousList.length === 0) {
+            return { success: true, message: "Aucun rendez-vous confirmé trouvé pour cette période." };
+        }
+
+        // Retourner les rendez-vous avec les informations de pagination
+        return {
+            success: true,
+            rendezVous: rendezVousList,
+            total: totalRendezVous,
+            page,
+            limit,
+            totalPages: Math.ceil(totalRendezVous / limit) // Calcul du nombre total de pages
+        };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+};
+
+
+module.exports = { rendezVousParId , fetchRendezVousAttenteOuNonDispo , fetchRendezVousEnAttente , fetchConfirmedRendezVousByClient , fetchRendezVousClient ,fetchRendezVousConfirmes , prendreRendezVous , modifierRendezVous, validerRendezVous , confirmerRendezVous ,annulerRendezVous , marquerRendezVousNonDisponible };

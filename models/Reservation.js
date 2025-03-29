@@ -10,7 +10,8 @@ const ReservationParkingSchema = new mongoose.Schema({
   tarif: { type: Number}, 
   statut: { type: String, enum: ['En attente', 'Confirmé', 'Validé', 'Annulé'], default: 'En attente' },
   date_limite_confirmation: { type: Date}, 
-  date_validation: { type: Date } 
+  date_validation: { type: Date },
+  facture_genere: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ReservationParking', ReservationParkingSchema);

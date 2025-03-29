@@ -1,7 +1,29 @@
 const Service = require('../models/Service');
 
-exports.getAllServices = async () => {
-  return await Service.find();
+exports.getAllServices = async (page = 1, limit = 10) => {
+  try {
+    // Calculer l'offset pour la pagination
+    const skip = (page - 1) * limit;
+
+    // Récupérer les services avec pagination
+    const services = await Service.find()
+      .skip(skip)  // Appliquer l'offset
+      .limit(limit);  // Limiter le nombre de résultats par page
+
+    // Compter le nombre total de services pour la pagination
+    const totalServices = await Service.countDocuments();
+
+    // Retourner les résultats paginés avec les informations de pagination
+    return {
+      services,
+      total: totalServices,
+      page,
+      limit,
+      totalPages: Math.ceil(totalServices / limit), // Calculer le nombre total de pages
+    };
+  } catch (error) {
+    throw new Error('Erreur lors de la récupération des services : ' + error.message);
+  }
 };
 
 exports.getServiceById = async (id) => {

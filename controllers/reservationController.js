@@ -1,4 +1,4 @@
-const { getReservationsConfirmeesParClient , soumettreReservation, getReservationsClient , verifierReservationsNonConfirmees, validerReservationParManager , confirmerReservation , annulerReservation , getReservationsEnAttenteValidationManager } = require('../services/reservationService');
+const { getReservationsValides , getReservationsConfirmees ,  soumettreReservation, getReservationsClient , verifierReservationsNonConfirmees, validerReservationParManager , confirmerReservation , annulerReservation , getReservationsEnAttenteValidationManager , getReservationsFacturables } = require('../services/reservationService');
 const deadlineService = require('../services/deadlineService');
 
 const soumettreReservationController = async (req, res) => {
@@ -25,16 +25,24 @@ const soumettreReservationController = async (req, res) => {
 const getReservationsClientController = async (req, res) => {
   try {
     const id_client = req.user.id; // Récupérer l'ID du client connecté depuis le token
-    const { date_debut, date_fin } = req.query; // Récupérer les dates depuis les paramètres de requête
+    const { date_debut, date_fin, page = 1, limit = 10 } = req.query; // Récupérer les dates et pagination
 
-    // Appeler le service pour obtenir les réservations
-    const reservations = await getReservationsClient(id_client, date_debut, date_fin);
+    // Appeler le service pour obtenir les réservations avec pagination
+    const result = await getReservationsClient(id_client, date_debut, date_fin, parseInt(page), parseInt(limit));
 
-    if (reservations.length === 0) {
-      return res.status(200).json({ message: "Aucune réservation trouvée pour cette période." });
+    if (!result.success) {
+      return res.status(200).json({ message: result.message });
     }
 
-    res.status(200).json(reservations);
+    // Retourner la réponse avec les données de réservation et la pagination
+    return res.status(200).json({
+      success: true,
+      data: result.reservations,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -52,16 +60,37 @@ const confirmerReservationController = async (req, res) => {
   }
 };
 
-const getReservationsConfirmeesParClientController = async (req, res) => {
+const getReservationsValidesController = async (req, res) => {
   try {
-    const id_client = req.user.id; // Si tu utilises un middleware d'auth
+    const id_client = req.user.id; // ID du client connecté
+
     if (!id_client) {
       return res.status(400).json({ message: "ID client manquant." });
     }
 
-    const reservations = await getReservationsConfirmeesParClient(id_client);
+    const { date_debut, date_fin, page = 1, limit = 10 } = req.query; // Récupérer les paramètres
 
-    res.status(200).json(reservations);
+    // Appeler le service pour obtenir les réservations confirmées avec pagination et filtres
+    const result = await getReservationsValides(
+      id_client, 
+      date_debut, 
+      date_fin, 
+      parseInt(page), 
+      parseInt(limit)
+    );
+
+    if (!result.success) {
+      return res.status(200).json({ message: result.message });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result.reservations,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -79,18 +108,54 @@ const annulerReservationController = async (req, res) => {
   }
 };
 
+const getReservationsConfirmeesController = async (req, res) => {
+  try {
+    const id_client = req.user.id; // ID du client connecté depuis le token
+    const { date_debut, date_fin, page = 1, limit = 10 } = req.query;
+
+    // Appel du service pour récupérer les réservations confirmées
+    const result = await getReservationsConfirmees(id_client, date_debut, date_fin, parseInt(page), parseInt(limit));
+
+    if (!result.success) {
+      return res.status(200).json({ message: result.message });
+    }
+
+    // Retourner la réponse avec les données paginées
+    return res.status(200).json({
+      success: true,
+      data: result.reservations,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 //reservation en attente de validation vu par le manager
 const getReservationsEnAttenteValidationManagerController = async (req, res) => {
   try {
     const { date_debut, date_fin } = req.query; // Récupérer les dates depuis la requête (GET /endpoint?dateDebut=YYYY-MM-DD&dateFin=YYYY-MM-DD)
+    const { page = 1, limit = 10 } = req.query; // Récupérer les paramètres page et limit de la requête
 
-    const reservations = await getReservationsEnAttenteValidationManager(date_debut, date_fin);
+    // Appeler le service pour obtenir les réservations en attente de validation avec pagination
+    const result = await getReservationsEnAttenteValidationManager(date_debut, date_fin, parseInt(page), parseInt(limit));
 
-    if (reservations.length === 0) {
+    if (!result.success) {
       return res.status(200).json({ message: "Aucune réservation en attente de validation dans cette période" });
     }
 
-    res.status(200).json(reservations);
+    // Retourner la réponse avec les résultats paginés et les informations de pagination
+    res.status(200).json({
+      success: true,
+      reservations: result.reservations,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -120,5 +185,29 @@ const verifierReservationsNonConfirmeesController = async (req, res) => {
   }
 };
 
+const getReservationsFacturablesController = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query; // Récupérer les paramètres page et limit depuis la requête
 
-module.exports = { getReservationsConfirmeesParClientController , soumettreReservationController, getReservationsClientController , confirmerReservationController, verifierReservationsNonConfirmeesController , validerReservationController , annulerReservationController , getReservationsEnAttenteValidationManagerController};
+    // Appeler le service pour obtenir les réservations facturables avec pagination
+    const result = await getReservationsFacturables(parseInt(page), parseInt(limit));
+
+    if (!result.success) {
+      return res.status(200).json(result);
+    }
+
+    // Retourner les résultats avec les informations de pagination
+    res.status(200).json({
+      success: true,
+      reservations: result.reservations,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getReservationsFacturablesController , getReservationsConfirmeesController ,  getReservationsValidesController , soumettreReservationController, getReservationsClientController , confirmerReservationController, verifierReservationsNonConfirmeesController , validerReservationController , annulerReservationController , getReservationsEnAttenteValidationManagerController};

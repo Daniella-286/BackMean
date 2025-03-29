@@ -8,8 +8,16 @@ const PieceUtilise = require('../models/PieceUtilise');
 const DevisPiece = require('../models/DevisPiece');
 const moment = require('moment'); 
 
-const fetchHistoriqueIntervention = async (id_vehicule) => {
+const fetchHistoriqueIntervention = async (id_vehicule, page = 1, limit = 10) => {
     try {
+        // Définir les limites de la journée actuelle
+        const debutJournee = new Date();
+        debutJournee.setHours(0, 0, 0, 0); // 00:00:00
+        const finJournee = new Date();
+        finJournee.setHours(23, 59, 59, 999); // 23:59:59
+
+        const skip = (page - 1) * limit;
+
         // Rechercher toutes les interventions terminées pour le véhicule
         const interventions = await Intervention.find({ id_vehicule, avancement: "Terminé" }) // 🔹 Ajout du filtre ici
             .populate({
@@ -30,10 +38,15 @@ const fetchHistoriqueIntervention = async (id_vehicule) => {
                     { path: 'id_modele', model: 'Modele' }
                 ]
             })
+            .skip(skip)
+            .limit(limit)
             .exec();
 
+        // Récupérer le nombre total d'interventions terminées pour le véhicule
+        const total = await Intervention.countDocuments({ id_vehicule, avancement: "Terminé" });
+
         if (!interventions || interventions.length === 0) {
-            return { success: false, message: "Aucune intervention terminée pour ce véhicule" };
+            return { success: false, message: "Aucune intervention terminée pour ce véhicule", total, totalPages: 0, currentPage: page };
         }
 
         // Récupération des sous-services pour chaque intervention terminée
@@ -66,11 +79,18 @@ const fetchHistoriqueIntervention = async (id_vehicule) => {
                     prenom: intervention.id_rdv?.id_demande?.id_client?.prenom || "Non renseigné",
                     contact: intervention.id_rdv?.id_demande?.id_client?.contact || "Non renseigné"
                 },
-                services 
+                services
             };
         }));
 
-        return { success: true, historique };
+        return {
+            success: true,
+            historique,
+            total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            limit
+        };
 
     } catch (error) {
         console.error("Erreur dans fetchHistoriqueIntervention:", error);
@@ -83,6 +103,11 @@ const getMecaniciensDisponibles = async (date_intervention, duree_reparation, id
         const dateDebut = new Date(date_intervention);
         const dateFin = new Date(dateDebut.getTime() + duree_reparation * 60 * 60 * 1000);
 
+        // Vérification que la date d'intervention et la durée sont valides
+        if (isNaN(dateDebut.getTime()) || duree_reparation <= 0) {
+            return { success: false, message: "Date ou durée invalide." };
+        }
+
         //  Récupérer les mécaniciens ayant la compétence requise
         const allMecaniciens = await Mecanicien.find({ id_service: id_service });
 
@@ -90,8 +115,9 @@ const getMecaniciensDisponibles = async (date_intervention, duree_reparation, id
             return { success: false, message: "Aucun mécanicien ne possède cette compétence." };
         }
 
-        // Récupérer les interventions qui chevauchent cette plage horaire
+        // Récupérer les interventions qui chevauchent cette plage horaire pour les mécaniciens concernés
         const busyInterventions = await Intervention.find({
+            id_mecanicien: { $in: allMecaniciens.map(m => m._id) },
             $or: [
                 { date_intervention: { $lt: dateFin }, date_fin_intervention: { $gt: dateDebut } }
             ]
@@ -100,7 +126,7 @@ const getMecaniciensDisponibles = async (date_intervention, duree_reparation, id
         // Extraire les ID des mécaniciens occupés
         const busyMecaniciens = busyInterventions.map(intervention => intervention.id_mecanicien.toString());
 
-        // Filtrer les mécaniciens disponibles ET ayant la compétence requise
+        // Filtrer les mécaniciens disponibles
         const availableMecaniciens = allMecaniciens.filter(mec => !busyMecaniciens.includes(mec._id.toString()));
 
         // Vérifier si aucun mécanicien n'est disponible
@@ -406,16 +432,15 @@ const addPieceToIntervention = async (idIntervention, idPiece, quantite) => {
     }
 };
 
-const getInterventionsTerminees = async (date) => {
+const getInterventionsTerminees = async (date, page = 1, limit = 10) => {
     try {
         let startDate, endDate;
 
+        // Validation et traitement de la date
         if (!date) {
             const today = new Date();
-            startDate = new Date(today);
-            endDate = new Date(today);
-            startDate.setUTCHours(0, 0, 0, 0);
-            endDate.setUTCHours(23, 59, 59, 999);
+            startDate = new Date(today.setUTCHours(0, 0, 0, 0)); // Date du jour à 00:00
+            endDate = new Date(today.setUTCHours(23, 59, 59, 999)); // Date du jour à 23:59:59
         } else {
             startDate = new Date(date);
             endDate = new Date(date);
@@ -423,11 +448,16 @@ const getInterventionsTerminees = async (date) => {
             endDate.setUTCHours(23, 59, 59, 999);
         }
 
-        // Récupérer les interventions terminées pour cette date
+        // Calculer le nombre d'éléments à ignorer (skip) basé sur la page
+        const skip = (page - 1) * limit;
+
+        // Récupérer les interventions terminées pour cette date avec pagination
         const interventions = await Intervention.find({
             avancement: "Terminé",
             date_intervention: { $gte: startDate, $lt: endDate }
         })
+        .skip(skip)
+        .limit(limit)
         .populate({
             path: 'id_rdv',
             populate: {
@@ -446,11 +476,18 @@ const getInterventionsTerminees = async (date) => {
                 { path: 'id_modele', model: 'Modele' }
             ]
         })
-        .sort({ date_intervention: 1 }) // 🔹 Tri par date croissante
+        .sort({ date_intervention: 1 }) 
         .exec();
 
+        // Compter le nombre total d'interventions terminées pour cette date
+        const totalInterventions = await Intervention.countDocuments({
+            avancement: "Terminé",
+            date_intervention: { $gte: startDate, $lt: endDate }
+        });
+
+        // Si aucune intervention n'est trouvée
         if (!interventions || interventions.length === 0) {
-            return { success: false, message: "Aucune intervention terminée pour cette date" };
+            return { success: false, message: "Aucune intervention terminée pour cette date", page, limit };
         }
 
         // Construction de la réponse
@@ -471,7 +508,15 @@ const getInterventionsTerminees = async (date) => {
             }
         }));
 
-        return { success: true, data: result };
+        // Retourner les interventions avec les informations de pagination
+        return {
+            success: true,
+            data: result,
+            total: totalInterventions,
+            page,
+            limit,
+            totalPages: Math.ceil(totalInterventions / limit) // Calcul du nombre total de pages
+        };
 
     } catch (error) {
         console.error("Erreur dans getInterventionsTerminees:", error);

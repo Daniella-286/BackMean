@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { createFacture } = require('../controllers/factureController');
+const { createFacture , getFacturesByClientContoller , getFactureById , getFacturesForMecanicien , getFacturesForMecanicienById } = require('../controllers/factureController');
 const  verifyToken  = require('../middleware/authMiddleware');
-const { checkManagerRole } = require('../middleware/roleMiddleware'); 
+const { checkManagerRole , checkMecanicienRole } = require('../middleware/roleMiddleware'); 
  
 router.post('/generer', verifyToken , checkManagerRole , createFacture);
+
+router.get("/facture-client", verifyToken ,  getFacturesByClientContoller );
+
+router.get("/facture-client/:id_facture", getFactureById);
+
+router.get("/du-jour", verifyToken , checkMecanicienRole ,getFacturesForMecanicien);
+
+router.get("/du-jour/:id_facture", getFactureById);
 
 module.exports = router;
