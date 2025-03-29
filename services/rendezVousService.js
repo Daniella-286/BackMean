@@ -262,8 +262,12 @@ const modifierRendezVous = async (id_rdv, nouvelle_date_rdv) => {
         }
 
         // Vérifier si le rendez-vous est dans un état modifiable
-        if (rendezVous.statut !== 'Validé' && rendezVous.statut !== 'Confirmé') {
-            return { success: false, message: "Vous ne pouvez modifier que les rendez-vous marqués comme 'Validé' ou 'Confirmé'." };
+        if (rendezVous.statut === 'Validé') {
+            return { success: false, message: "Vous ne pouvez pas modifier ce rendez-vous" };
+        }
+
+        if (rendezVous.statut === 'Confirmé') {
+            return { success: false, message: "Vous ne pouvez pas modifier ce rendez-vous" };
         }
 
         // Récupérer la configuration des délais
