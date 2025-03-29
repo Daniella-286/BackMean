@@ -37,10 +37,16 @@ const soumettreDemandeDevis = async (req, res) => {
 //Listes des demandes envoyés vu par le client et avec statut
 const listerDemandesClient = async (req, res) => {
     try {
-        const id_client = req.user.id; 
-        const { date_debut, date_fin } = req.query; 
+        const id_client = req.user.id;
+        const { date_debut, date_fin, page, limit } = req.query;
 
-        const result = await listesDemandesParClient(id_client, date_debut, date_fin);
+        const result = await listesDemandesParClient(
+            id_client, 
+            date_debut, 
+            date_fin, 
+            parseInt(page) || 1, 
+            parseInt(limit) || 10
+        );
 
         if (!result.success) {
             return res.status(400).json({ message: result.message });
@@ -50,7 +56,7 @@ const listerDemandesClient = async (req, res) => {
             return res.status(200).json({ message: "Aucune demande en attente trouvée pour cette période." });
         }
 
-        res.status(200).json({ demandes: result.demandes });
+        res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -59,9 +65,9 @@ const listerDemandesClient = async (req, res) => {
 //Listes des demandes envoyés vu par le manager pour envoyé les devis
 const afficherDemandesEnAttente = async (req, res) => {
     try {
-        const { date_debut, date_fin } = req.query; // Récupérer les dates de filtrage
+        const { date_debut, date_fin, page = 1, limit = 10 } = req.query;
 
-        const result = await obtenirDemandesEnAttente(date_debut, date_fin);
+        const result = await obtenirDemandesEnAttente(date_debut, date_fin, Number(page), Number(limit));
 
         if (!result.success) {
             return res.status(400).json({ message: result.message });
@@ -71,7 +77,10 @@ const afficherDemandesEnAttente = async (req, res) => {
             return res.status(200).json({ message: "Aucune demande en attente trouvée pour cette période." });
         }
 
-        res.status(200).json({ demandes: result.demandes });
+        res.status(200).json({ 
+            demandes: result.demandes,
+            pagination: result.pagination
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -81,23 +90,30 @@ const afficherDemandesEnAttente = async (req, res) => {
 const listerDemandesClientEnvoye = async (req, res) => {
     try {
         const id_client = req.user.id; 
-        const { date_debut, date_fin } = req.query; 
+        const { date_debut, date_fin, page = 1, limit = 10 } = req.query; 
 
-        const result = await listesDemandesParClientEnvoye(id_client, date_debut, date_fin);
+        const result = await listesDemandesParClientEnvoye(
+            id_client, 
+            date_debut, 
+            date_fin, 
+            Number(page), 
+            Number(limit)
+        );
 
         if (!result.success) {
             return res.status(400).json({ message: result.message });
         }
 
         if (!result.demandes || result.demandes.length === 0) {
-            return res.status(200).json({ message: "Aucune devis envoyé pour cette période."});
+            return res.status(200).json({ message: "Aucun devis envoyé pour cette période." });
         }
 
-        res.status(200).json({ demandes: result.demandes });
+        res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ message: "Une erreur est survenue : " + error.message });
     }
 };
+
 
 ///
 

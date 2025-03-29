@@ -8,8 +8,20 @@ exports.uploadImage = uploadServiceImage;  // Corrige l'import ici // Middleware
 
 exports.getAllServices = async (req, res) => {
   try {
-    const services = await serviceService.getAllServices();
-    res.status(200).json(services);
+    // Récupérer les paramètres de pagination depuis la requête
+    const { page = 1, limit = 10 } = req.query; // Par défaut, page=1 et limit=10
+
+    // Appeler la fonction pour récupérer les services avec pagination
+    const result = await serviceService.getAllServices(parseInt(page), parseInt(limit));
+
+    // Retourner les résultats avec pagination
+    res.status(200).json({
+      services: result.services,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error });
   }
@@ -83,7 +95,6 @@ exports.updateService = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error });
   }
 };
-
 
 exports.deleteService = async (req, res) => {
   try {

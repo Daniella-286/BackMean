@@ -1,7 +1,7 @@
 const express = require('express');
 const verifyToken = require('../middleware/authMiddleware'); // Middleware pour vérifier le token
 const { checkManagerRole } = require('../middleware/roleMiddleware'); // Middleware pour vérifier que l'utilisateur est un manager
-const { rendezVousParIdController , getRendezVousEnAttente , getConfirmedRendezVousByClientController , getRendezVousClient ,getRendezVousConfirmes ,creerRendezVous , confirmerRendezVousController , annulerRendezVousController , validerRendezVousController , marquerRendezVousNonDisponibleController , modifierRendezVousController } = require('../controllers/rendezVousController');
+const { rendezVousParIdController,getRendezVousEnAttente , getConfirmedRendezVousByClientController ,getRendezVousClient ,getRendezVousConfirmes ,creerRendezVous , confirmerRendezVousController , annulerRendezVousController , validerRendezVousController , marquerRendezVousNonDisponibleController , modifierRendezVousController , getRendezVousAttenteOuNonDispo } = require('../controllers/rendezVousController');
 
 const router = express.Router();
 
@@ -28,6 +28,8 @@ router.put('/confirmer/:id_rdv', confirmerRendezVousController);
 
 // Endpoint pour récupérer les rendez-vous confirmés du client connecté
 router.get('/mes-rendez-vous/confirme', verifyToken, getConfirmedRendezVousByClientController);
+
+router.get('/mes-rendez-vous/attente-non-dispo', verifyToken, getRendezVousAttenteOuNonDispo);
 
 // Route pour que le manager valide un rendez-vous
 router.put('/valider/:id_rdv', validerRendezVousController);

@@ -1,5 +1,5 @@
 const express = require('express');
-const {createPieceSousService , getPieceSousServices , getPieceSousService , updatePieceSousService , deletePieceSousService } = require('../controllers/pieceSousServiceController');
+const {createPieceSousService , getPieceSousServices , getPieceSousService , updatePieceSousService , deletePieceSousService , getPiecesBySousService } = require('../controllers/pieceSousServiceController');
 const router = express.Router();
 const verifyToken = require('../middleware/authMiddleware'); // Middleware pour vérifier le token
 const { checkManagerRole } = require('../middleware/roleMiddleware'); // Middleware pour vérifier que l'utilisateur est un manager
@@ -19,5 +19,7 @@ router.put('/:id', updatePieceSousService);
 
 // Supprimer une relation Piece - SousService par son ID
 router.delete('/:id', deletePieceSousService);
+
+router.get('/pieces-par-sousservice/:id_sous_service',getPiecesBySousService);
 
 module.exports = router;

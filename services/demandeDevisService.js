@@ -75,7 +75,7 @@ const ajouterPhotosDemande = async (id_demande, fichiers) => {
 //////
 
 //Listes des demandes en attente vu par le client
-const listesDemandesParClient = async (id_client, date_debut, date_fin) => {
+const listesDemandesParClient = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
     try {
         if (!date_debut || !date_fin) {
             const today = new Date();
@@ -88,21 +88,33 @@ const listesDemandesParClient = async (id_client, date_debut, date_fin) => {
             date_fin = new Date(date_fin);
         }
 
+        const skip = (page - 1) * limit;
+
         const demandes = await DemandeDevis.find({
             id_client,
             statut: 'En attente',
             date_demande: { $gte: date_debut, $lte: date_fin }
         })
-            .populate('id_vehicule', 'immatriculation') 
-            .populate('id_service', 'nom_service') 
-            .sort({ date_demande: -1 });
+            .populate('id_vehicule', 'immatriculation')
+            .populate('id_service', 'nom_service')
+            .sort({ date_demande: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const total = await DemandeDevis.countDocuments({
+            id_client,
+            statut: 'En attente',
+            date_demande: { $gte: date_debut, $lte: date_fin }
+        });
+
+        const totalPages = Math.ceil(total / limit);
 
         const demandesDetails = await Promise.all(demandes.map(async (demande) => {
             const details = await DemandeDevisDetail.find({ id_demande: demande._id })
-                .populate('id_sous_service', 'nom_sous_service'); 
-    
+                .populate('id_sous_service', 'nom_sous_service');
+
             const images = await DevisImage.find({ id_demande: demande._id }).select('url');
-    
+
             return {
                 id_demande: demande._id,
                 date_demande: demande.date_demande,
@@ -123,16 +135,22 @@ const listesDemandesParClient = async (id_client, date_debut, date_fin) => {
             };
         }));
 
-        return { success: true, demandes: demandesDetails };
+        return { 
+            success: true, 
+            page, 
+            limit, 
+            total, 
+            totalPages, 
+            demandes: demandesDetails 
+        };
     } catch (error) {
         return { success: false, message: 'Erreur lors de la récupération des demandes de devis: ' + error.message };
     }
 };
 
 //Listes des demandes en attente vu par le manager pour envoyé les devis
-const obtenirDemandesEnAttente = async (date_debut, date_fin) => {
+const obtenirDemandesEnAttente = async (date_debut, date_fin, page = 1, limit = 10) => {
     try {
-        // Gestion des dates
         if (!date_debut || !date_fin) {
             const today = new Date();
             date_fin = date_fin ? new Date(date_fin) : new Date(today);
@@ -145,14 +163,22 @@ const obtenirDemandesEnAttente = async (date_debut, date_fin) => {
         date_debut.setUTCHours(0, 0, 0, 0);
         date_fin.setUTCHours(23, 59, 59, 999);
 
-        // Récupération des demandes en attente
+        // Nombre total de demandes
+        const totalDemandes = await DemandeDevis.countDocuments({
+            statut: 'En attente',
+            date_demande: { $gte: date_debut, $lte: date_fin }
+        });
+
+        // Pagination
         const demandes = await DemandeDevis.find({
             statut: 'En attente',
             date_demande: { $gte: date_debut, $lte: date_fin }
         })
-            .populate('id_vehicule', 'immatriculation') // Véhicule : immatriculation uniquement
-            .populate('id_service', 'nom_service') // Correct // Service principal : nom uniquement
-            .sort({ date_demande: -1 });
+            .populate('id_vehicule', 'immatriculation')
+            .populate('id_service', 'nom_service')
+            .sort({ date_demande: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
 
         // Ajouter sous-services et images
         const demandesDetails = await Promise.all(demandes.map(async (demande) => {
@@ -180,34 +206,57 @@ const obtenirDemandesEnAttente = async (date_debut, date_fin) => {
                 images: images.map(image => image.url)
             };
         }));
-        return { success: true, demandes: demandesDetails };
+
+        return { 
+            success: true, 
+            demandes: demandesDetails, 
+            pagination: {
+                total: totalDemandes,
+                page,
+                totalPages: Math.ceil(totalDemandes / limit),
+                limit
+            }
+        };
     } catch (error) {
         return { success: false, message: 'Erreur lors de la récupération des demandes en attente: ' + error.message };
     }
 };
 
 //Listes des demandes responses vu par le client
-const listesDemandesParClientEnvoye = async (id_client, date_debut, date_fin) => {
+const listesDemandesParClientEnvoye = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
     try {
         if (!date_debut || !date_fin) {
             const today = new Date();
             date_fin = date_fin ? new Date(date_fin) : new Date(today);
             date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30));
-            date_debut.setUTCHours(0, 0, 0, 0);
-            date_fin.setUTCHours(23, 59, 59, 999);
         } else {
             date_debut = new Date(date_debut);
             date_fin = new Date(date_fin);
         }
 
+        date_debut.setUTCHours(0, 0, 0, 0);
+        date_fin.setUTCHours(23, 59, 59, 999);
+
+        const skip = (page - 1) * limit;
+
+        // Nombre total de demandes
+        const total = await DemandeDevis.countDocuments({
+            id_client,
+            statut: 'Envoyé',
+            date_demande: { $gte: date_debut, $lte: date_fin }
+        });
+
+        // Récupération paginée des demandes
         const demandes = await DemandeDevis.find({
             id_client,
             statut: 'Envoyé',
             date_demande: { $gte: date_debut, $lte: date_fin }
         })
-            .populate('id_vehicule', 'immatriculation') 
-            .populate('id_service', 'nom_service') 
-            .sort({ date_demande: -1 });
+            .populate('id_vehicule', 'immatriculation')
+            .populate('id_service', 'nom_service')
+            .sort({ date_demande: -1 })
+            .skip(skip)
+            .limit(limit);
 
         const demandesDetails = await Promise.all(demandes.map(async (demande) => {
             const details = await DemandeDevisDetail.find({ id_demande: demande._id })
@@ -235,7 +284,14 @@ const listesDemandesParClientEnvoye = async (id_client, date_debut, date_fin) =>
             };
         }));
 
-        return { success: true, demandes: demandesDetails };
+        return { 
+            success: true, 
+            page, 
+            limit, 
+            total, 
+            totalPages: Math.ceil(total / limit), 
+            demandes: demandesDetails 
+        };
     } catch (error) {
         return { success: false, message: 'Erreur lors de la récupération des demandes de devis: ' + error.message };
     }

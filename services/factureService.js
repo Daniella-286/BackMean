@@ -1,12 +1,12 @@
 const Facture = require('../models/Facture');
-const DetailFacture1 = require('../models/DetailFacture1'); // Détails des services
-const DetailFacture2 = require('../models/DetailFacture2'); // Détails des pièces
+const DetailFacture1 = require('../models/DetailFacture1'); 
+const DetailFacture2 = require('../models/DetailFacture2'); 
 const Intervention = require('../models/Intervention');
-const Piece = require('../models/Piece'); // Modèle pour récupérer les prix des pièces
-const Service = require('../models/Service'); // Modèle pour récupérer les prix des services
-const DevisPiece = require('../models/DevisPiece'); // Modèle des pièces du devis
-const PieceUtilise = require('../models/PieceUtilise'); // Modèle des pièces utilisées
-const DevisService = require('../models/DevisService'); // Modèle des services du devis
+const Piece = require('../models/Piece'); 
+const Service = require('../models/Service'); 
+const DevisPiece = require('../models/DevisPiece');
+const PieceUtilise = require('../models/PieceUtilise'); 
+const DevisService = require('../models/DevisService'); 
 
 // Générer la facture principale
 const generateFacture = async (id_intervention) => {
@@ -18,10 +18,22 @@ const generateFacture = async (id_intervention) => {
 
         const id_client = intervention.id_rdv.id_client;
 
+        // Vérifier si une facture existe déjà pour cette intervention
+        const factureExistante = await Facture.findOne({ id_intervention });
+        if (factureExistante) {
+            throw new Error("Une facture existe déjà pour cette intervention.");
+        }
 
+        // Générer un numéro unique pour la facture
+        const dernierNumero = await Facture.findOne().sort({ numero_facture: -1 }).select("numero_facture");
+        const numeroFacture = dernierNumero ? parseInt(dernierNumero.numero_facture.split('-')[1]) + 1 : 1; // Incrémenter le numéro
+        const numeroFactureString = `FACT-${numeroFacture.toString().padStart(6, '0')}`; // Format du numéro
+
+        // Créer la facture
         const nouvelleFacture = new Facture({
             id_client,
             id_intervention,
+            numero_facture: numeroFactureString,
             total: 0, // On calculera le total après
         });
 
@@ -154,6 +166,7 @@ const genererFacture = async (id_intervention) => {
             facture: {
                 id: facture._id,
                 id_client: facture.id_client,
+                numero_facture: facture.numero_facture,
                 id_intervention: facture.id_intervention,
                 total: facture.total,
                 date_facture: facture.date_facture,
@@ -184,5 +197,193 @@ const genererFacture = async (id_intervention) => {
     }
 };
 
+const getFacturesByClient = async (id_client, page = 1, limit = 10) => {
+    try {
+        // Définir les limites de la journée actuelle
+        const debutJournee = new Date();
+        debutJournee.setHours(0, 0, 0, 0); 
 
-module.exports = { genererFacture };
+        const finJournee = new Date();
+        finJournee.setHours(23, 59, 59, 999); 
+
+        const skip = (page - 1) * limit;
+
+        // Nombre total de factures pour le client aujourd'hui
+        const total = await Facture.countDocuments({
+            id_client,
+            date_facture: { $gte: debutJournee, $lte: finJournee }
+        });
+
+        // Récupérer les factures avec pagination
+        const factures = await Facture.find({
+            id_client,
+            date_facture: { $gte: debutJournee, $lte: finJournee }
+        })
+        .populate("id_intervention") // Charger les détails de l'intervention
+        .sort({ date_facture: -1 }) // Trier par date décroissante
+        .skip(skip)
+        .limit(limit);
+
+        return {
+            success: true,
+            factures,
+            total,
+            totalPages: Math.ceil(total / limit),
+            page,
+            limit,
+        };
+    } catch (error) {
+        return { success: false, message: "Erreur lors de la récupération des factures : " + error.message };
+    }
+};
+  
+const getFactureDetails = async (id_facture) => {
+    try {
+        // Récupérer la facture principale
+        const facture = await Facture.findById(id_facture).populate("id_intervention");
+
+        if (!facture) {
+            return { message: "Facture introuvable." };
+        }
+
+        // Récupérer les détails des services facturés
+        const detailsServices = await DetailFacture1.find({ id_facture }).populate("id_sous_service");
+
+        // Récupérer les détails des pièces facturées
+        const detailsPieces = await DetailFacture2.find({ id_facture }).populate("id_piece");
+
+        // Calcul du total des services
+        const totalServices = detailsServices.reduce((total, service) => total + service.tarif, 0);
+
+        // Calcul du total des pièces
+        const totalPieces = detailsPieces.reduce((total, piece) => total + (piece.quantite * piece.prix_unitaire), 0);
+
+        // Construire la réponse détaillée
+        const factureComplete = {
+            facture: {
+                id: facture._id,
+                numero_facture: facture.numero_facture,
+                id_client: facture.id_client,
+                id_intervention: facture.id_intervention,
+                total: facture.total,
+                date_facture: facture.date_facture,
+            },
+            details_services: detailsServices.map(service => ({
+                id_sous_service: service.id_sous_service._id,
+                nom: service.id_sous_service.nom,
+                tarif: service.tarif,
+                sous_total: service.tarif
+            })),
+            total_services: totalServices,
+            details_pieces: detailsPieces.map(piece => ({
+                id_piece: piece.id_piece._id,
+                nom: piece.id_piece.nom,
+                quantite: piece.quantite,
+                prix_unitaire: piece.prix_unitaire,
+                sous_total: piece.quantite * piece.prix_unitaire
+            })),
+            total_pieces: totalPieces,
+            total_facture: facture.total,
+        };
+
+        return factureComplete;
+    } catch (error) {
+        throw new Error("Erreur lors de la récupération des détails de la facture : " + error.message);
+    }
+};
+
+const getFacturesDuJour = async (page = 1, limit = 10) => {
+    try {
+        // Définition des limites pour la journée en cours
+        const debutJournee = new Date();
+        debutJournee.setHours(0, 0, 0, 0);
+
+        const finJournee = new Date();
+        finJournee.setHours(23, 59, 59, 999);
+
+        const skip = (page - 1) * limit;
+
+        // Nombre total de factures du jour
+        const total = await Facture.countDocuments({
+            date_facture: { $gte: debutJournee, $lte: finJournee }
+        });
+
+        // Récupérer les factures avec pagination
+        const factures = await Facture.find({
+            date_facture: { $gte: debutJournee, $lte: finJournee }
+        })
+        .populate("id_intervention") // Charger les détails de l'intervention
+        .sort({ date_facture: -1 }) // Trier par date décroissante
+        .skip(skip)
+        .limit(limit);
+
+        return {
+            success: true,
+            factures,
+            total,
+            totalPages: Math.ceil(total / limit),
+            page,
+            limit,
+        };
+    } catch (error) {
+        return { success: false, message: "Erreur lors de la récupération des factures du jour : " + error.message };
+    }
+};
+
+const getFacturesDuJourDetails = async (id_facture) => {
+    try {
+        // Récupérer la facture principale
+        const facture = await Facture.findById(id_facture).populate("id_intervention");
+
+        if (!facture) {
+            return { message: "Facture introuvable." };
+        }
+
+        // Récupérer les détails des services facturés
+        const detailsServices = await DetailFacture1.find({ id_facture }).populate("id_sous_service");
+
+        // Récupérer les détails des pièces facturées
+        const detailsPieces = await DetailFacture2.find({ id_facture }).populate("id_piece");
+
+        // Calcul du total des services
+        const totalServices = detailsServices.reduce((total, service) => total + service.tarif, 0);
+
+        // Calcul du total des pièces
+        const totalPieces = detailsPieces.reduce((total, piece) => total + (piece.quantite * piece.prix_unitaire), 0);
+
+        // Construire la réponse détaillée
+        const factureComplete = {
+            facture: {
+                id: facture._id,
+                numero_facture: facture.numero_facture,
+                id_client: facture.id_client,
+                id_intervention: facture.id_intervention,
+                total: facture.total,
+                date_facture: facture.date_facture,
+            },
+            details_services: detailsServices.map(service => ({
+                id_sous_service: service.id_sous_service._id,
+                nom: service.id_sous_service.nom,
+                tarif: service.tarif,
+                sous_total: service.tarif
+            })),
+            total_services: totalServices,
+            details_pieces: detailsPieces.map(piece => ({
+                id_piece: piece.id_piece._id,
+                nom: piece.id_piece.nom,
+                quantite: piece.quantite,
+                prix_unitaire: piece.prix_unitaire,
+                sous_total: piece.quantite * piece.prix_unitaire
+            })),
+            total_pieces: totalPieces,
+            total_facture: facture.total,
+        };
+
+        return factureComplete;
+    } catch (error) {
+        throw new Error("Erreur lors de la récupération des détails de la facture : " + error.message);
+    }
+};
+
+
+module.exports = { genererFacture , getFacturesByClient , getFactureDetails  , getFacturesDuJour , getFacturesDuJourDetails };

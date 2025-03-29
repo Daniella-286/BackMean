@@ -59,10 +59,27 @@ const deletePieceSousService = async (req, res) => {
   }
 };
 
+const getPiecesBySousService = async (req, res) => {
+  try {
+    const { id_sous_service } = req.params;
+
+    const result = await pieceSousServiceService.getPiecesBySousService(id_sous_service);
+
+    if (!result.success) {
+      return res.status(404).json({ success: false, message: result.message });
+    }
+
+    return res.status(200).json({ success: true, piecesSousService: result.piecesSousService });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createPieceSousService,
   getPieceSousServices,
   getPieceSousService,
   updatePieceSousService,
-  deletePieceSousService
+  deletePieceSousService,
+  getPiecesBySousService
 };

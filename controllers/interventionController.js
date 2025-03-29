@@ -3,12 +3,14 @@ const interventionService = require('../services/interventionService');
 const getHistoriqueIntervention = async (req, res) => {
     try {
         const { id_vehicule } = req.params;
+        const { page = 1, limit = 10 } = req.query;
 
         if (!id_vehicule) {
             return res.status(400).json({ success: false, message: "ID du véhicule requis." });
         }
 
-        const result = await interventionService.fetchHistoriqueIntervention(id_vehicule);
+        const result = await interventionService.fetchHistoriqueIntervention(id_vehicule, page, limit);
+
         return res.status(200).json(result);
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -21,6 +23,11 @@ const getDisponibiliteMecaniciens = async (req, res) => {
 
         if (!date_intervention || !duree_reparation || !id_service) {
             return res.status(400).json({ success: false, message: "Date, durée et service sont requis." });
+        }
+
+        // Validation que la durée de réparation est un nombre positif
+        if (isNaN(duree_reparation) || duree_reparation <= 0) {
+            return res.status(400).json({ success: false, message: "La durée de réparation doit être un nombre positif." });
         }
 
         const result = await interventionService.getMecaniciensDisponibles(date_intervention, duree_reparation, id_service);
@@ -149,20 +156,20 @@ const addPiece = async (req, res) => {
 
 const getInterventionsTermineesController = async (req, res) => {
     try {
-        // Vérifier si l'utilisateur est un manager
-        if (req.user.role !== 'manager') {
-            return res.status(403).json({ success: false, message: "Accès refusé. Seul le manager peut voir les interventions terminées." });
+        const { date, page = 1, limit = 10 } = req.query;
+
+        // Validation de la date
+        if (date && isNaN(new Date(date).getTime())) {
+            return res.status(400).json({ success: false, message: "Date invalide." });
         }
 
-        const { date } = req.query; // Récupérer la date depuis la requête
-
-        // Appeler le service pour récupérer les interventions terminées
-        const result = await interventionService.getInterventionsTerminees(date);
+        // Appeler le service pour récupérer les interventions terminées avec pagination
+        const result = await interventionService.getInterventionsTerminees(date, parseInt(page), parseInt(limit));
         return res.status(result.success ? 200 : 400).json(result);
 
     } catch (error) {
         console.error("Erreur dans getInterventionsTermineesController:", error);
-        res.status(500).json({ success: false, message: "Erreur serveur : " + error.message });
+        return res.status(500).json({ success: false, message: "Erreur serveur : " + error.message });
     }
 };
 

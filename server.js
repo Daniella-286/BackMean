@@ -28,6 +28,9 @@ const devisRoutes = require('./routes/devisRoutes');
 const typeMouvementRoutes = require('./routes/typeMouvementRoutes');
 const mouvementStockRoutes = require('./routes/mouvementStockRoutes'); // Import des routes
 const factureRoutes = require('./routes/factureRoutes');
+const factureParkingRoutes = require('./routes/factureParkingRoutes');
+const paiementRoutes = require('./routes/paiementRoutes');
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 
 const app = express();
@@ -80,6 +83,9 @@ app.use('/api/devis', devisRoutes);
 app.use('/api/type-mouvement', typeMouvementRoutes);
 app.use('/api/mouvement-stock', mouvementStockRoutes);
 app.use('/api/factures', factureRoutes);
+app.use('/api/factures-parking', factureParkingRoutes);
+app.use('/api/paiement', paiementRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Démarrer le serveur
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));

@@ -47,13 +47,13 @@ const soumettreReservation = async (id_parking, id_client , id_vehicule, date_de
 };
 
 //Liste reservation des clients connecté en attente
-const getReservationsClient = async (id_client, date_debut, date_fin) => {
+const getReservationsClient = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
   try {
-    // Si aucune date n'est fournie, prendre les 30 derniers jours
+    // Si aucune date n'est fournie, prendre les 7 derniers jours par défaut
     if (!date_debut || !date_fin) {
       const today = new Date();
       date_fin = date_fin ? new Date(date_fin) : new Date(today); // Copier today pour éviter la modification
-      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // Par défaut, 30 jours avant aujourd'hui
+      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // Par défaut, 7 jours avant aujourd'hui
       date_debut.setUTCHours(0, 0, 0, 0);
       date_fin.setUTCHours(23, 59, 59, 999);
     } else {
@@ -61,20 +61,42 @@ const getReservationsClient = async (id_client, date_debut, date_fin) => {
       date_fin = new Date(date_fin);
     }
 
-    // Ajouter 5 jours à la date de fin
-    date_fin.setDate(date_fin.getDate() + 5);
-    
-    // Rechercher les réservations du client connecté entre ces dates
-    const reservations = await ReservationParking.find({
+    date_fin.setDate(date_fin.getDate() + 7); // Décaler la date de fin de 7 jours
+
+    // Filtrer les réservations
+    const filter = {
       id_client: id_client,
       statut: "En attente",
-      date_limite_confirmation : { $gte: date_debut, $lte: date_fin }
-    })
+      date_limite_confirmation: { $gte: date_debut, $lte: date_fin }
+    };
+
+    // Calculer l'offset (skip) pour la pagination
+    const skip = (page - 1) * limit;
+
+    // Rechercher les réservations du client avec pagination
+    const reservations = await ReservationParking.find(filter)
+      .skip(skip) // Appliquer l'offset
+      .limit(limit) // Limiter le nombre de résultats par page
       .populate("id_parking", "numero")
       .populate("id_vehicule", "marque modele immatriculation") // Infos du véhicule
       .sort({ date_debut: -1 }); // Trier par date décroissante (plus récente en premier)
 
-    return reservations;
+    // Compter le nombre total de réservations pour la pagination
+    const totalReservations = await ReservationParking.countDocuments(filter);
+
+    if (reservations.length === 0) {
+      return { success: true, message: "Aucune réservation trouvée pour cette période." };
+    }
+
+    // Retourner les réservations avec informations de pagination
+    return {
+      success: true,
+      reservations: reservations,
+      total: totalReservations,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReservations / limit) // Calculer le nombre total de pages
+    };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -107,16 +129,53 @@ const confirmerReservation = async (id_reservation) => {
   }
 };
 
-const getReservationsConfirmeesParClient = async (id_client) => {
+const getReservationsValides = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
   try {
-    const reservations = await ReservationParking.find({ 
-      id_client: id_client, 
-      statut: 'Validé' 
-    })
-    .populate('id_vehicule') // Récupère les infos du véhicule
-    .populate('id_parking');  // Récupère les infos du parking
+    // Si aucune date n'est fournie, prendre les 7 derniers jours par défaut
+    if (!date_debut || !date_fin) {
+      const today = new Date();
+      date_fin = date_fin ? new Date(date_fin) : new Date(today); // Copier today pour éviter la modification
+      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // Par défaut, 7 jours avant aujourd'hui
+      date_debut.setUTCHours(0, 0, 0, 0);
+      date_fin.setUTCHours(23, 59, 59, 999);
+    } else {
+      date_debut = new Date(date_debut);
+      date_fin = new Date(date_fin);
+    }
 
-    return reservations;
+    // Filtrer les réservations confirmées du client avec la période donnée
+    const filter = {
+      id_client: id_client,
+      statut: "Validé",
+      date_debut: { $gte: date_debut, $lte: date_fin }
+    };
+
+    // Calculer l'offset (skip) pour la pagination
+    const skip = (page - 1) * limit;
+
+    // Rechercher les réservations confirmées avec pagination
+    const reservations = await ReservationParking.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .populate("id_vehicule", "marque modele immatriculation") // Infos du véhicule
+      .populate("id_parking", "numero") // Infos du parking
+      .sort({ date_debut: -1 }); // Trier par date décroissante
+
+    // Compter le nombre total de réservations pour la pagination
+    const totalReservations = await ReservationParking.countDocuments(filter);
+
+    if (reservations.length === 0) {
+      return { success: true, message: "Aucune réservation confirmée trouvée pour cette période." };
+    }
+
+    return {
+      success: true,
+      reservations,
+      total: totalReservations,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReservations / limit)
+    };
   } catch (error) {
     throw new Error("Erreur lors de la récupération des réservations confirmées : " + error.message);
   }
@@ -155,13 +214,14 @@ const annulerReservation = async (id_reservation) => {
   }
 };
 
-//reservation en attente de validation vu par le manager
-const getReservationsEnAttenteValidationManager = async (date_debut, date_fin) => {
+const getReservationsConfirmees = async (id_client, date_debut, date_fin, page = 1, limit = 10) => {
   try {
+    // Si aucune date n'est fournie, prendre les 7 derniers jours par défaut
     if (!date_debut || !date_fin) {
       const today = new Date();
-      date_fin = date_fin ? new Date(date_fin) : new Date(today); // Copier today pour éviter la modification
-      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 30)); // Par défaut, 30 jours avant aujourd'hui
+      date_fin = date_fin ? new Date(date_fin) : new Date(today);
+      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7));
+
       date_debut.setUTCHours(0, 0, 0, 0);
       date_fin.setUTCHours(23, 59, 59, 999);
     } else {
@@ -169,18 +229,90 @@ const getReservationsEnAttenteValidationManager = async (date_debut, date_fin) =
       date_fin = new Date(date_fin);
     }
 
-    date_fin.setDate(date_fin.getDate() + 5);
+    // Filtrer les réservations avec statut "Confirmé"
+    const filter = {
+      id_client,
+      statut: "Confirmé",
+      date_debut: { $gte: date_debut, $lte: date_fin }
+    };
 
-    // Exécution de la requête MongoDB avec les dates en UTC (ISODate explicite)
+    // Calcul de la pagination
+    const skip = (page - 1) * limit;
+
+    // Recherche des réservations
+    const reservations = await ReservationParking.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .populate("id_parking", "numero")
+      .populate("id_vehicule", "marque modele immatriculation")
+      .sort({ date_debut: -1 });
+
+    // Compter le nombre total de réservations confirmées
+    const totalReservations = await ReservationParking.countDocuments(filter);
+
+    if (reservations.length === 0) {
+      return { success: true, message: "Aucune réservation confirmée trouvée pour cette période." };
+    }
+
+    return {
+      success: true,
+      reservations,
+      total: totalReservations,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReservations / limit)
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+//reservation en attente de validation vu par le manager
+const getReservationsEnAttenteValidationManager = async (date_debut, date_fin, page = 1, limit = 10) => {
+  try {
+    // Si aucune date n'est fournie, définir une période par défaut (30 jours avant aujourd'hui)
+    if (!date_debut || !date_fin) {
+      const today = new Date();
+      date_fin = date_fin ? new Date(date_fin) : new Date(today); // Copier today pour éviter la modification
+      date_debut = date_debut ? new Date(date_debut) : new Date(today.setDate(today.getDate() - 7)); // Par défaut, 30 jours avant aujourd'hui
+      date_debut.setUTCHours(0, 0, 0, 0);
+      date_fin.setUTCHours(23, 59, 59, 999);
+    } else {
+      date_debut = new Date(date_debut);
+      date_fin = new Date(date_fin);
+    }
+
+    date_fin.setDate(date_fin.getDate() + 7);
+
+    // Calculer l'offset (skip) pour la pagination
+    const skip = (page - 1) * limit;
+
+    // Exécution de la requête MongoDB avec les dates en UTC (ISODate explicite) et la pagination
     const reservations = await ReservationParking.find({
       statut: "Confirmé",
-      date_limite_confirmation : { $gte: date_debut, $lte: date_fin }
+      date_limite_confirmation: { $gte: date_debut, $lte: date_fin }
     })
+      .skip(skip) // Appliquer l'offset
+      .limit(limit) // Limiter le nombre de résultats par page
       .populate("id_parking")
       .populate({ path: "id_client", select: "nom prenom email telephone" })
       .populate({ path: "id_vehicule", select: "marque modele annee immatriculation" });
 
-    return reservations;
+    // Compter le nombre total de réservations pour la pagination
+    const totalReservations = await ReservationParking.countDocuments({
+      statut: "Confirmé",
+      date_limite_confirmation: { $gte: date_debut, $lte: date_fin }
+    });
+
+    // Retourner les résultats avec les informations de pagination
+    return {
+      success: true,
+      reservations,
+      total: totalReservations,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReservations / limit), // Calculer le nombre total de pages
+    };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -233,5 +365,58 @@ const verifierReservationsNonConfirmees = async () => {
   }
 };
 
+const getReservationsFacturables = async (page = 1, limit = 10) => {
+  try {
+    const today = new Date();
 
-module.exports = { getReservationsConfirmeesParClient , soumettreReservation, getReservationsClient , verifierReservationsNonConfirmees , validerReservationParManager , annulerReservation , confirmerReservation , getReservationsEnAttenteValidationManager };
+    today.setHours(today.getHours() + 1);
+
+    console.log("Today:", today);
+
+    // Calculer l'offset (skip) pour la pagination
+    const skip = (page - 1) * limit;
+
+    // Exécution de la requête MongoDB avec pagination
+    const reservations = await ReservationParking.find({
+      statut: "Validé",
+      date_fin: { $lte: today },
+      facture_genere: false
+    })
+      .skip(skip) // Appliquer l'offset
+      .limit(limit) // Limiter le nombre de résultats par page
+      .populate("id_parking", "numero")
+      .populate("id_client", "nom prenom email")
+      .populate("id_vehicule", "marque modele immatriculation");
+
+    // Compter le nombre total de réservations pour la pagination
+    const totalReservations = await ReservationParking.countDocuments({
+      statut: "Validé",
+      date_fin: { $lte: today },
+      facture_genere: false
+    });
+
+    if (reservations.length === 0) {
+      return {
+        message: "Aucune réservation à facturer.",
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+      };
+    }
+
+    // Retourner les résultats paginés avec les informations de pagination
+    return {
+      success: true,
+      reservations,
+      total: totalReservations,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReservations / limit), // Calculer le nombre total de pages
+    };
+  } catch (error) {
+    throw new Error("Erreur lors de la récupération des réservations facturables : " + error.message);
+  }
+};
+
+module.exports = { getReservationsValides , getReservationsConfirmees ,  soumettreReservation, getReservationsClient , verifierReservationsNonConfirmees , validerReservationParManager , annulerReservation , confirmerReservation , getReservationsEnAttenteValidationManager , getReservationsFacturables };

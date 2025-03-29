@@ -140,7 +140,6 @@ const registerMecanicien = async (req, res) => {
     }
 };
 
-
 // CONNEXION MECANICIEN
 const loginMecanicien = (req, res, next) => {
     passport.authenticate('mecanicien', { session: false }, async (err, mecanicien, info) => {
@@ -157,7 +156,7 @@ const loginMecanicien = (req, res, next) => {
       const token = generateToken(mecanicien, 'mecanicien');
       res.json({ message: 'Connexion réussie', token });
     })(req, res, next);
-  };
+};
 
 module.exports = {
     registerClient,
