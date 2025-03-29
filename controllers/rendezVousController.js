@@ -106,7 +106,7 @@ const annulerRendezVousController = async (req, res) => {
 const modifierRendezVousController = async (req, res) => {
     try {
         const { id_rdv } = req.params;
-        const date_rendez_vous = req.body;
+        const { date_rendez_vous } = req.body;
 
         if (!date_rendez_vous) {
             return res.status(400).json({ message: "Les champs Date_rendez_vous sont requis." });
