@@ -98,43 +98,51 @@ const fetchHistoriqueIntervention = async (id_vehicule, page = 1, limit = 10) =>
     }
 };
 
-const getMecaniciensDisponibles = async (date_intervention, duree_reparation, id_service) => {
+const getMecaniciensDisponibles = async (date_intervention, duree_reparation, id_service, page = 1, limit = 10) => {
     try {
         const dateDebut = new Date(date_intervention);
         const dateFin = new Date(dateDebut.getTime() + duree_reparation * 60 * 60 * 1000);
 
-        // Vérification que la date d'intervention et la durée sont valides
         if (isNaN(dateDebut.getTime()) || duree_reparation <= 0) {
             return { success: false, message: "Date ou durée invalide." };
         }
 
-        //  Récupérer les mécaniciens ayant la compétence requise
+        // Récupérer tous les mécaniciens ayant la compétence requise
         const allMecaniciens = await Mecanicien.find({ id_service: id_service });
 
         if (allMecaniciens.length === 0) {
             return { success: false, message: "Aucun mécanicien ne possède cette compétence." };
         }
 
-        // Récupérer les interventions qui chevauchent cette plage horaire pour les mécaniciens concernés
+        // Récupérer les interventions qui chevauchent cette plage horaire
         const busyInterventions = await Intervention.find({
             id_mecanicien: { $in: allMecaniciens.map(m => m._id) },
-            $or: [
-                { date_intervention: { $lt: dateFin }, date_fin_intervention: { $gt: dateDebut } }
-            ]
+            $or: [{ date_intervention: { $lt: dateFin }, date_fin_intervention: { $gt: dateDebut } }]
         });
 
-        // Extraire les ID des mécaniciens occupés
         const busyMecaniciens = busyInterventions.map(intervention => intervention.id_mecanicien.toString());
 
         // Filtrer les mécaniciens disponibles
         const availableMecaniciens = allMecaniciens.filter(mec => !busyMecaniciens.includes(mec._id.toString()));
 
-        // Vérifier si aucun mécanicien n'est disponible
         if (availableMecaniciens.length === 0) {
             return { success: false, message: "Aucun mécanicien disponible pour cet horaire avec cette compétence." };
         }
 
-        return { success: true, mecaniciens: availableMecaniciens };
+        // Appliquer la pagination
+        const totalMecaniciens = availableMecaniciens.length;
+        const totalPages = Math.ceil(totalMecaniciens / limit);
+        const skip = (page - 1) * limit;
+        const paginatedMecaniciens = availableMecaniciens.slice(skip, skip + limit);
+
+        return {
+            success: true,
+            mecaniciens: paginatedMecaniciens,
+            total: totalMecaniciens,
+            page,
+            limit,
+            totalPages
+        };
     } catch (error) {
         console.error("Erreur lors de la récupération des mécaniciens disponibles:", error);
         throw error;
@@ -173,6 +181,9 @@ const planifierIntervention = async (id_rdv, id_mecanicien, duree_reparation) =>
         });
 
         await intervention.save();
+        
+        await RendezVous.findByIdAndUpdate(id_rdv, { intervention: true });
+
         return { success: true, message: "Intervention planifiée avec succès.", intervention };
     } catch (error) {
         return { success: false, message: error.message };
@@ -211,11 +222,28 @@ const getEmploiDuTemps = async (mecanicienId) => {
         const startDate = moment().startOf('day').toDate(); // Début de la journée actuelle
         const endDate = moment().add(7, 'days').endOf('day').toDate(); // Fin de la journée du 7ème jour
 
-        // Récupérer toutes les interventions assignées à ce mécanicien
+        console.log("startDate : " , startDate ) ;
+        console.log("endDate : " , endDate ) ;
+
+        // Récupérer toutes les interventions assignées à ce mécanicien avec les informations du véhicule et du client
         const interventions = await Intervention.find({
             id_mecanicien: mecanicienId,
             date_intervention: { $gte: startDate, $lte: endDate } // Filtrer entre aujourd'hui et 7 jours après
-        }).sort({ date_intervention: 1 }); // Trier par date croissante
+        })
+        .sort({ date_intervention: 1 }) // Trier par date croissante
+        .populate({
+            path: 'id_vehicule', // Récupérer les informations du véhicule
+            select: 'marque modele immatriculation' // Sélectionner les champs du véhicule à retourner
+        })
+        .populate({
+            path: 'id_rdv', // Récupérer l'id du rendez-vous associé à l'intervention
+            populate: {
+                path: 'id_client', // Récupérer le client associé au rendez-vous
+                select: 'nom prenom email' // Sélectionner les champs du client à retourner
+            }
+        });
+
+        console.log("Emploi du temps : " , interventions ) ;
 
         return { success: true, data: interventions };
     } catch (error) {
@@ -359,7 +387,7 @@ const getTaskIntervention = async (idIntervention) => {
     }
 };
 
-const updateInterventionStatus = async (idIntervention, statut, mecanicienId) => {
+const updateInterventionStatus = async (idIntervention, statut) => {
     try {
         // Vérifier si le statut est valide
         const validStatuses = ['Début', 'En cours', 'Terminé'];
@@ -373,10 +401,6 @@ const updateInterventionStatus = async (idIntervention, statut, mecanicienId) =>
             return { success: false, message: 'Intervention non trouvée' };
         }
 
-        // Vérifier que c'est bien le mécanicien qui met à jour le statut
-        if (intervention.id_mecanicien.toString() !== mecanicienId) {
-            return { success: false, message: 'Accès non autorisé : vous ne pouvez mettre à jour que vos propres interventions' };
-        }
 
         // Sécuriser les transitions de statut
         if (intervention.avancement === 'Terminé' && (statut === 'En cours' || statut === 'Début')) {

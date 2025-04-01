@@ -12,6 +12,12 @@ const effectuerPaiementService = async (id_facture, montant) => {
             throw new Error("Facture introuvable.");
         }
 
+        // Vérifier si un paiement a déjà été effectué pour cette facture
+        const paiementExistants = await PaiementService.find({ id_facture: id_facture });
+        if (paiementExistants.length > 0) {
+            throw new Error("Un paiement a déjà été effectué pour cette facture.");
+        }
+
         // Créer un paiement pour la facture
         const paiement = new PaiementService({
             id_facture: id_facture,
@@ -21,15 +27,13 @@ const effectuerPaiementService = async (id_facture, montant) => {
         // Sauvegarder le paiement
         await paiement.save();
 
-        // Mettre à jour la facture avec le statut payé
-        facture.status = 'payée';
-        await facture.save();
-
+        // Retourner le paiement créé
         return paiement;
     } catch (error) {
         throw new Error("Erreur lors du paiement : " + error.message);
     }
 };
+
 
 const effectuerPaiementParking = async (id_facture, montant) => {
     try {
@@ -37,6 +41,12 @@ const effectuerPaiementParking = async (id_facture, montant) => {
         const factureParking = await FactureParking.findById(id_facture);
         if (!factureParking) {
             throw new Error("Facture de parking introuvable.");
+        }
+
+        // Vérifier si un paiement a déjà été effectué pour cette facture de parking
+        const paiementExistants = await PaiementParking.find({ id_facture: id_facture });
+        if (paiementExistants.length > 0) {
+            throw new Error("Un paiement a déjà été effectué pour cette facture de parking.");
         }
 
         // Créer un paiement pour la facture de parking
@@ -57,6 +67,7 @@ const effectuerPaiementParking = async (id_facture, montant) => {
         throw new Error("Erreur lors du paiement : " + error.message);
     }
 };
+
 
 module.exports = { effectuerPaiementService , effectuerPaiementParking };
 

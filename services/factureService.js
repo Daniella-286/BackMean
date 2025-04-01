@@ -239,18 +239,30 @@ const getFacturesByClient = async (id_client, page = 1, limit = 10) => {
   
 const getFactureDetails = async (id_facture) => {
     try {
-        // Récupérer la facture principale
-        const facture = await Facture.findById(id_facture).populate("id_intervention");
+        // Récupérer la facture principale avec l'intervention associée
+        const facture = await Facture.findById(id_facture)
+            .populate("id_intervention") // Peupler l'intervention
+            .exec();
 
         if (!facture) {
             return { message: "Facture introuvable." };
         }
 
-        // Récupérer les détails des services facturés
-        const detailsServices = await DetailFacture1.find({ id_facture }).populate("id_sous_service");
+        // Récupérer les détails des services facturés (peupler les sous-services)
+        const detailsServices = await DetailFacture1.find({ id_facture })
+            .populate({
+                path: "id_sous_service",  // Peupler le sous-service
+                select: "nom_sous_service"  // Sélectionner uniquement le nom
+            })
+            .exec();
 
-        // Récupérer les détails des pièces facturées
-        const detailsPieces = await DetailFacture2.find({ id_facture }).populate("id_piece");
+        // Récupérer les détails des pièces facturées (peupler les pièces)
+        const detailsPieces = await DetailFacture2.find({ id_facture })
+            .populate({
+                path: "id_piece",  // Peupler la pièce
+                select: "nom_piece"  // Sélectionner uniquement le nom
+            })
+            .exec();
 
         // Calcul du total des services
         const totalServices = detailsServices.reduce((total, service) => total + service.tarif, 0);
@@ -269,15 +281,15 @@ const getFactureDetails = async (id_facture) => {
                 date_facture: facture.date_facture,
             },
             details_services: detailsServices.map(service => ({
-                id_sous_service: service.id_sous_service._id,
-                nom: service.id_sous_service.nom,
+                id_sous_service: service.id_sous_service?._id || null,  // Vérification de la présence du sous-service
+                nom: service.id_sous_service?.nom_sous_service || "Nom sous-service introuvable",  // Afficher le nom du sous-service
                 tarif: service.tarif,
                 sous_total: service.tarif
             })),
             total_services: totalServices,
             details_pieces: detailsPieces.map(piece => ({
-                id_piece: piece.id_piece._id,
-                nom: piece.id_piece.nom,
+                id_piece: piece.id_piece?._id || null,  // Vérification de la présence de la pièce
+                nom: piece.id_piece?.nom_piece || "Nom pièce introuvable",  // Afficher le nom de la pièce
                 quantite: piece.quantite,
                 prix_unitaire: piece.prix_unitaire,
                 sous_total: piece.quantite * piece.prix_unitaire
@@ -292,7 +304,7 @@ const getFactureDetails = async (id_facture) => {
     }
 };
 
-const getFacturesDuJour = async (page = 1, limit = 10) => {
+const getFacturesDuJour = async (page = 1, limit = 10, numero_facture = null) => {
     try {
         // Définition des limites pour la journée en cours
         const debutJournee = new Date();
@@ -303,19 +315,24 @@ const getFacturesDuJour = async (page = 1, limit = 10) => {
 
         const skip = (page - 1) * limit;
 
-        // Nombre total de factures du jour
-        const total = await Facture.countDocuments({
+        // Filtrer par numéro de facture si fourni
+        const filtre = {
             date_facture: { $gte: debutJournee, $lte: finJournee }
-        });
+        };
+
+        if (numero_facture) {
+            filtre.numero_facture = { $regex: new RegExp(numero_facture, "i") }; 
+        }
+
+        // Nombre total de factures du jour
+        const total = await Facture.countDocuments(filtre);
 
         // Récupérer les factures avec pagination
-        const factures = await Facture.find({
-            date_facture: { $gte: debutJournee, $lte: finJournee }
-        })
-        .populate("id_intervention") // Charger les détails de l'intervention
-        .sort({ date_facture: -1 }) // Trier par date décroissante
-        .skip(skip)
-        .limit(limit);
+        const factures = await Facture.find(filtre)
+            .populate("id_intervention") // Charger les détails de l'intervention
+            .sort({ date_facture: -1 }) // Trier par date décroissante
+            .skip(skip)
+            .limit(limit);
 
         return {
             success: true,
@@ -332,18 +349,30 @@ const getFacturesDuJour = async (page = 1, limit = 10) => {
 
 const getFacturesDuJourDetails = async (id_facture) => {
     try {
-        // Récupérer la facture principale
-        const facture = await Facture.findById(id_facture).populate("id_intervention");
+        // Récupérer la facture principale avec l'intervention associée
+        const facture = await Facture.findById(id_facture)
+            .populate("id_intervention") // Peupler l'intervention
+            .exec();
 
         if (!facture) {
             return { message: "Facture introuvable." };
         }
 
-        // Récupérer les détails des services facturés
-        const detailsServices = await DetailFacture1.find({ id_facture }).populate("id_sous_service");
+        // Récupérer les détails des services facturés (peupler les sous-services)
+        const detailsServices = await DetailFacture1.find({ id_facture })
+            .populate({
+                path: "id_sous_service",  // Peupler le sous-service
+                select: "nom_sous_service"  // Sélectionner uniquement le nom
+            })
+            .exec();
 
-        // Récupérer les détails des pièces facturées
-        const detailsPieces = await DetailFacture2.find({ id_facture }).populate("id_piece");
+        // Récupérer les détails des pièces facturées (peupler les pièces)
+        const detailsPieces = await DetailFacture2.find({ id_facture })
+            .populate({
+                path: "id_piece",  // Peupler la pièce
+                select: "nom_piece"  // Sélectionner uniquement le nom
+            })
+            .exec();
 
         // Calcul du total des services
         const totalServices = detailsServices.reduce((total, service) => total + service.tarif, 0);
@@ -362,15 +391,15 @@ const getFacturesDuJourDetails = async (id_facture) => {
                 date_facture: facture.date_facture,
             },
             details_services: detailsServices.map(service => ({
-                id_sous_service: service.id_sous_service._id,
-                nom: service.id_sous_service.nom,
+                id_sous_service: service.id_sous_service?._id || null,  // Vérification de la présence du sous-service
+                nom: service.id_sous_service?.nom_sous_service || "Nom sous-service introuvable",  // Afficher le nom du sous-service
                 tarif: service.tarif,
                 sous_total: service.tarif
             })),
             total_services: totalServices,
             details_pieces: detailsPieces.map(piece => ({
-                id_piece: piece.id_piece._id,
-                nom: piece.id_piece.nom,
+                id_piece: piece.id_piece?._id || null,  // Vérification de la présence de la pièce
+                nom: piece.id_piece?.nom_piece || "Nom pièce introuvable",  // Afficher le nom de la pièce
                 quantite: piece.quantite,
                 prix_unitaire: piece.prix_unitaire,
                 sous_total: piece.quantite * piece.prix_unitaire
@@ -384,6 +413,5 @@ const getFacturesDuJourDetails = async (id_facture) => {
         throw new Error("Erreur lors de la récupération des détails de la facture : " + error.message);
     }
 };
-
 
 module.exports = { genererFacture , getFacturesByClient , getFactureDetails  , getFacturesDuJour , getFacturesDuJourDetails };

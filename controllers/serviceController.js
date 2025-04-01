@@ -27,6 +27,15 @@ exports.getAllServices = async (req, res) => {
   }
 };
 
+exports.getAllServicesScroll = async (req, res) => {
+  try {
+    const services = await serviceService.getAllServicesScroll();
+    res.status(200).json(services);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error });
+  }
+};
+
 exports.getServiceById = async (req, res) => {
   try {
     const service = await serviceService.getServiceById(req.params.id);

@@ -10,25 +10,48 @@ const FactureParking = require('../models/FactureParking');
 const TypeMouvement = require('../models/TypeMouvement');
 const PaiementService = require('../models/PaiementService');
 const PaiementParking = require('../models/PaiementParking');
-
-///// Activité du garage (Réparations & Services)
+const Mecanicien = require('../models/Mecanicien');
 
 // Nombre total d’interventions réalisées
 const getTotalInterventions = async () => {
     return await Intervention.countDocuments({ avancement: "Terminé" });
 };
 
-// Moyenne des montants facturés par intervention
-const getAverageInvoiceAmount = async () => {
-    const result = await Facture.aggregate([
-        {
-            $group: {
-                _id: null,
-                avgAmount: { $avg: "$total" },
-            },
-        },
-    ]);
-    return result.length > 0 ? result[0].avgAmount : 0;
+// Nombre total de clients
+const getNombreClients = async () => {
+    return await Client.countDocuments();
+};
+
+// Nombre total de réservations effectuées
+const getNombreReservations = async () => {
+    return await ReservationParking.countDocuments();
+};
+
+// Nombre total en caisse
+const getTotalCaisse = async () => {
+    try {
+        // Somme des paiements de services
+        const totalService = await PaiementService.aggregate([
+            { $group: { _id: null, total: { $sum: "$montant" } } }
+        ]);
+
+        // Somme des paiements de parking
+        const totalParking = await PaiementParking.aggregate([
+            { $group: { _id: null, total: { $sum: "$montant" } } }
+        ]);
+
+        // Calcul du total encaissé
+        const totalCaisse = (totalService[0]?.total || 0) + (totalParking[0]?.total || 0);
+
+        return { success: true, totalCaisse };
+    } catch (error) {
+        return { success: false, message: `Erreur lors du calcul du total en caisse : ${error.message}` };
+    }
+};
+
+// Nombre total de mécaniciens
+const getNombreMecaniciens = async () => {
+    return await Mecanicien.countDocuments({ statut: true });
 };
 
 // Interventions terminées par mois
@@ -79,18 +102,13 @@ const getInterventionsTermineesParMois = async (annee) => {
     }
 };
 
-///// Suivi du stock
-
-// Récupérer l'historique des mouvements de stock (entrées et sorties)
-const getStockHistory = async () => {
-    return await MouvementStock.find().populate('id_piece');
-};
-
 // Reste en stock
-const getStockRestant = async () => {
+const getStockRestant = async (page = 1, limit = 10) => {
     try {
-        // Récupérer toutes les pièces
-        const pieces = await Piece.find();
+        const skip = (page - 1) * limit;
+
+        // Récupérer les pièces avec pagination
+        const pieces = await Piece.find().skip(skip).limit(limit);
 
         let stockRestant = [];
 
@@ -131,23 +149,62 @@ const getStockRestant = async () => {
             const totalEntrees = entrees.length > 0 ? entrees[0].total : 0;
             const totalSorties = sorties.length > 0 ? sorties[0].total : 0;
             const resteEnStock = totalEntrees - totalSorties;
+            const dateUTC = new Date();
+            dateUTC.setHours(dateUTC.getHours() + 2); // Décale l'heure de +2 heures (ton fuseau horaire)
+            const dateConsultation = dateUTC.toISOString();
 
             // Ajouter aux résultats
             stockRestant.push({
                 nom_piece: piece.nom_piece,
                 prix_unitaire: piece.prix_unitaire,
                 stock_restant: resteEnStock,
-                date_consultation: new Date().toISOString() // Date actuelle
+                date_consultation: dateConsultation // Date actuelle
             });
         }
 
-        return stockRestant;
+        // Compter le nombre total de pièces pour la pagination
+        const totalPieces = await Piece.countDocuments();
+
+        return {
+            totalPieces,
+            page,
+            limit,
+            totalPages: Math.ceil(totalPieces / limit),
+            stockRestant
+        };
     } catch (error) {
         throw new Error(`Erreur lors du calcul du stock restant : ${error.message}`);
     }
 };
 
-///// Suivi financier
+// Récupérer l'historique des mouvements de stock (entrées et sorties)
+const getStockHistory = async (page = 1, limit = 10) => {
+    try {
+        const skip = (page - 1) * limit;
+        
+        // Compter le nombre total d'éléments
+        const totalDocuments = await MouvementStock.countDocuments();
+        
+        // Récupérer les mouvements de stock avec pagination
+        const stockHistory = await MouvementStock.find()
+            .populate('id_piece')
+            .populate('id_type_mouvement')
+            .skip(skip)
+            .limit(limit)
+            .sort({ date_mouvement: -1 }); // Trier du plus récent au plus ancien
+
+        return {
+            totalDocuments,
+            page,
+            limit,
+            totalPages: Math.ceil(totalDocuments / limit),
+            stockHistory
+        };
+    } catch (error) {
+        throw new Error(`Erreur lors de la récupération de l’historique : ${error.message}`);
+    }
+};
+
 
 // Montant total encaissé (par période)
 const getMontantTotalParMois = async (annee) => {
@@ -218,86 +275,28 @@ const getMontantTotalParMois = async (annee) => {
     }
 };
 
-// Nombre de factures générées et montants totaux
-const getFacturesStats = async () => {
-    const nbFacturesService = await FactureService.countDocuments();
-    const totalMontantService = await FactureService.aggregate([
-        { $group: { _id: null, total: { $sum: '$total' } } }
-    ]);
-
-    const nbFacturesParking = await FactureParking.countDocuments();
-    const totalMontantParking = await FactureParking.aggregate([
-        { $group: { _id: null, total: { $sum: '$total' } } }
-    ]);
-
-    return {
-        nbFactures: nbFacturesService + nbFacturesParking,
-        montant_total: (totalMontantService[0]?.total || 0) + (totalMontantParking[0]?.total || 0)
-    };
-};
-
-/////  Occupation et gestion du parking
-
-// Taux d'occupation du parking (réservations en cours)
-const getTauxOccupation = async (capaciteTotale) => {
-    const reservationsEnCours = await ReservationParking.countDocuments({ statut: 'active' });
-    return ((reservationsEnCours / capaciteTotale) * 100).toFixed(2); // En pourcentage
-};
-
-// Nombre total de réservations effectuées
-const getNombreReservations = async () => {
-    return await ReservationParking.countDocuments();
-};
-
-// Durée moyenne des réservations (en heures)
-const getDureeMoyenneReservations = async () => {
-    const result = await ReservationParking.aggregate([
-        { 
-            $project: { 
-                duree: { $divide: [{ $subtract: ["$date_fin", "$date_debut"] }, 1000 * 60 * 60] } 
-            } 
+// Moyenne des montants facturés par intervention
+const getAverageInvoiceAmount = async () => {
+    const result = await Facture.aggregate([
+        {
+            $group: {
+                _id: null,
+                avgAmount: { $avg: "$total" },
+            },
         },
-        { $group: { _id: null, moyenne: { $avg: "$duree" } } }
     ]);
-
-    return result[0]?.moyenne?.toFixed(2) || 0; // Durée moyenne en heures
+    return result.length > 0 ? result[0].avgAmount : 0;
 };
-
-///// Statistiques générales 
-
-// Nombre total de clients
-const getNombreClients = async () => {
-    return await Client.countDocuments();
-};
-
-// Nombre total de réservations (services + parking)
-const getNombreReservations2 = async () => {
-    const reservationsServices = await Intervention.countDocuments();
-    const reservationsParking = await ReservationParking.countDocuments();
-    return reservationsServices + reservationsParking;
-};
-
-// Nombre total de factures générées (services + parking)
-const getNombreFactures = async () => {
-    const facturesServices = await FactureService.countDocuments();
-    const facturesParking = await FactureParking.countDocuments();
-    return facturesServices + facturesParking;
-};
-
 
 module.exports = {
     getTotalInterventions,
     getAverageInvoiceAmount,
     getInterventionsTermineesParMois,
+    getNombreMecaniciens,
     getStockHistory,
     getStockRestant,
     getMontantTotalParMois,
-
-    getFacturesStats,
-    getTauxOccupation,
+    getTotalCaisse,
     getNombreReservations,
-    getDureeMoyenneReservations,
-    getNombreClients,
-    getNombreReservations2,
-    getNombreFactures
+    getNombreClients
 };

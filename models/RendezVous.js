@@ -7,7 +7,8 @@ const RendezVousSchema = new mongoose.Schema({
   date_rendez_vous: { type: Date, required: true },
   date_confirmation: { type: Date },
   date_limite_confirmation: { type: Date, required: true }, // Calculée en fonction du délai
-  statut: { type: String, enum: ['En attente' , 'Validé' , 'Non disponible' , 'Confirmé', 'Annulé'], default: 'En attente' }
+  statut: { type: String, enum: ['En attente' , 'Validé' , 'Non disponible' , 'Confirmé', 'Annulé'], default: 'En attente' },
+  intervention: { type: Boolean, default: false } // Nouveau champ ajouté
 }, { timestamps: true });
 
 module.exports = mongoose.model('RendezVous', RendezVousSchema);

@@ -20,7 +20,7 @@ router.put('/update-mecanicien/:idIntervention', verifyToken , checkManagerRole 
 
 router.get('/historique/:id_vehicule', getHistoriqueIntervention);
 
-router.put('/update-status/:idIntervention', verifyToken, checkMecanicienRole , updateStatusController);
+router.put('/update-status/:idIntervention',  updateStatusController);
 
 router.post('/ajouter-piece-utilise', addPiece);
 

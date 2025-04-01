@@ -12,6 +12,6 @@ router.get("/facture-client/:id_facture", getFactureById);
 
 router.get("/du-jour", verifyToken , checkMecanicienRole ,getFacturesForMecanicien);
 
-router.get("/du-jour/:id_facture", getFactureById);
+router.get("/du-jour/:id_facture", getFacturesForMecanicienById);
 
 module.exports = router;

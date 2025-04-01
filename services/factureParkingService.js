@@ -104,50 +104,39 @@ const getFacturesByClient = async (id_client, page = 1, limit = 10) => {
 // Fonction pour récupérer les détails d'une facture
 const getFactureDetails = async (id_facture) => {
     try {
-        // Récupérer la facture principale
-        const facture = await FactureParking.findById(id_facture).populate("id_reservation");
+        // Récupérer la facture principale avec la réservation et son parking
+        const facture = await FactureParking.findById(id_facture)
+            .populate({
+                path: "id_reservation",
+                populate: { path: "id_parking", select: "numero" } // Récupère le parking via Reservation
+            });
 
         if (!facture) {
-            return { message: "Facture introuvable." };
+            return { message: "Facture de parking introuvable." };
         }
 
-        // Récupérer la réservation associée pour plus de détails
-        const reservation = await ReservationParking.findById(facture.id_reservation);
-
-        if (!reservation) {
-            return { message: "Réservation associée à la facture introuvable." };
-        }
-
-        // Construction des détails de la facture
+        // Construction de la réponse détaillée
         const factureComplete = {
             facture: {
                 id: facture._id,
                 numero_facture: facture.numero_facture,
                 id_client: facture.id_client,
-                id_reservation: facture.id_reservation,
+                id_reservation: facture.id_reservation ? facture.id_reservation._id : null,
                 duree_parking: facture.duree_parking,
                 tarif_heure: facture.tarif_heure,
                 total: facture.total,
                 date_facture: facture.date_facture,
+                numero_parking: facture.id_reservation?.id_parking?.numero || null, // Récupérer le numéro de parking
             },
-            reservation: {
-                id_parking: reservation.id_parking,
-                id_client: reservation.id_client,
-                id_vehicule: reservation.id_vehicule,
-                date_debut: reservation.date_debut,
-                date_fin: reservation.date_fin,
-                tarif: reservation.tarif,
-                statut: reservation.statut
-            }
         };
 
         return factureComplete;
     } catch (error) {
-        throw new Error("Erreur lors de la récupération des détails de la facture : " + error.message);
+        throw new Error("Erreur lors de la récupération des détails de la facture de parking : " + error.message);
     }
 };
 
-const getFacturesParkingDuJour = async (page = 1, limit = 10) => {
+const getFacturesParkingDuJour = async (numero_facture = null, page = 1, limit = 10) => {
     try {
         // Définir les limites de la journée actuelle
         const debutJournee = new Date();
@@ -158,19 +147,25 @@ const getFacturesParkingDuJour = async (page = 1, limit = 10) => {
 
         const skip = (page - 1) * limit;
 
-        // Nombre total de factures du jour
-        const total = await FactureParking.countDocuments({
+        // Construire le filtre
+        let filter = {
             date_facture: { $gte: debutJournee, $lte: finJournee }
-        });
+        };
 
-        // Récupérer les factures du jour avec pagination
-        const facturesParking = await FactureParking.find({
-            date_facture: { $gte: debutJournee, $lte: finJournee }
-        })
-        .populate("id_reservation")  // Charger les détails de la réservation
-        .sort({ date_facture: -1 })  // Trier par date décroissante
-        .skip(skip)
-        .limit(limit);
+        // Appliquer un filtre sur numero_facture si fourni
+        if (numero_facture) {
+            filter.numero_facture = { $regex: new RegExp(numero_facture, "i") };
+        }
+
+        // Nombre total de factures du jour correspondant au filtre
+        const total = await FactureParking.countDocuments(filter);
+
+        // Récupérer les factures du jour avec pagination et tri par date décroissante
+        const facturesParking = await FactureParking.find(filter)
+            .populate("id_reservation")  // Charger les détails de la réservation
+            .sort({ date_facture: -1 })  // Trier par date décroissante
+            .skip(skip)
+            .limit(limit);
 
         return {
             success: true,
@@ -188,8 +183,12 @@ const getFacturesParkingDuJour = async (page = 1, limit = 10) => {
 
 const getFactureParkingDetails = async (id_facture) => {
     try {
-        // Récupérer la facture principale
-        const facture = await FactureParking.findById(id_facture).populate("id_reservation");
+        // Récupérer la facture principale avec la réservation et son parking
+        const facture = await FactureParking.findById(id_facture)
+            .populate({
+                path: "id_reservation",
+                populate: { path: "id_parking", select: "numero" } // Récupère le parking via Reservation
+            });
 
         if (!facture) {
             return { message: "Facture de parking introuvable." };
@@ -201,11 +200,12 @@ const getFactureParkingDetails = async (id_facture) => {
                 id: facture._id,
                 numero_facture: facture.numero_facture,
                 id_client: facture.id_client,
-                id_reservation: facture.id_reservation,
+                id_reservation: facture.id_reservation ? facture.id_reservation._id : null,
                 duree_parking: facture.duree_parking,
                 tarif_heure: facture.tarif_heure,
                 total: facture.total,
                 date_facture: facture.date_facture,
+                numero_parking: facture.id_reservation?.id_parking?.numero || null, // Récupérer le numéro de parking
             },
         };
 
@@ -214,5 +214,7 @@ const getFactureParkingDetails = async (id_facture) => {
         throw new Error("Erreur lors de la récupération des détails de la facture de parking : " + error.message);
     }
 };
+
+
 
 module.exports = { genererFacture , getFacturesByClient, getFactureDetails , getFacturesParkingDuJour, getFactureParkingDetails };

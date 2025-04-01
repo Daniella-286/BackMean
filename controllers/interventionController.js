@@ -19,24 +19,25 @@ const getHistoriqueIntervention = async (req, res) => {
 
 const getDisponibiliteMecaniciens = async (req, res) => {
     try {
-        const { date_intervention, duree_reparation, id_service } = req.query;
+        const { date_intervention, duree_reparation, id_service, page = 1, limit = 10 } = req.query;
 
         if (!date_intervention || !duree_reparation || !id_service) {
             return res.status(400).json({ success: false, message: "Date, durée et service sont requis." });
         }
 
-        // Validation que la durée de réparation est un nombre positif
         if (isNaN(duree_reparation) || duree_reparation <= 0) {
             return res.status(400).json({ success: false, message: "La durée de réparation doit être un nombre positif." });
         }
 
-        const result = await interventionService.getMecaniciensDisponibles(date_intervention, duree_reparation, id_service);
+        const result = await interventionService.getMecaniciensDisponibles(
+            date_intervention,
+            parseInt(duree_reparation),
+            id_service,
+            parseInt(page),
+            parseInt(limit)
+        );
 
-        if (!result.success) {
-            return res.status(200).json({ success: false, message: result.message });
-        }
-
-        return res.status(200).json({ success: true, mecaniciens: result.mecaniciens });
+        return res.status(200).json(result);
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }
@@ -80,7 +81,6 @@ const updateMecanicien = async (req, res) => {
 
 const getEmploiDuTemps = async (req, res) => {
     const mecanicienId = req.user.id; // ID du mécanicien connecté (récupéré depuis l'authentification)
-
     try {
         const response = await interventionService.getEmploiDuTemps(mecanicienId);
         if (response.success) {
@@ -125,10 +125,9 @@ const getTaskInterventionController = async (req, res) => {
 const updateStatusController = async (req, res) => {
     try {
         const { statut } = req.body;
-        const { id_intervention } = req.params;
-        const mecanicienId = req.user.id; 
+        const { idIntervention } = req.params;
 
-        const result = await interventionService.updateInterventionStatus(id_intervention, statut, mecanicienId);
+        const result = await interventionService.updateInterventionStatus(idIntervention, statut);
         res.status(200).json(result);
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
