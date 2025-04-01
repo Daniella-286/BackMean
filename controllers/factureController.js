@@ -49,9 +49,14 @@ const getFactureById = async (req, res) => {
 
 const getFacturesForMecanicien = async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query; // Récupérer les paramètres de pagination
+        const { page = 1, limit = 10, numero_facture } = req.query;
 
-        const result = await getFacturesDuJour(Number(page), Number(limit));
+        // Conversion des paramètres
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        const numeroFactureString = numero_facture ? String(numero_facture) : null;
+
+        const result = await getFacturesDuJour(pageNumber, limitNumber, numeroFactureString);
 
         if (!result.success) {
             return res.status(400).json({ message: result.message });

@@ -52,7 +52,7 @@ const calculerResteStock = async (id_piece) => {
         return resteStock;
 
     } catch (error) {
-        console.error("Erreur lors du calcul du stock restant :", error);
+        console.error("❌ Erreur lors du calcul du stock restant :", error);
         throw new Error("Impossible de calculer le stock restant.");
     }
 };

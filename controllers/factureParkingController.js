@@ -32,7 +32,6 @@ const getFacturesByClientController = async (req, res) => {
     }
 };
 
-
 // Fonction pour récupérer les détails d'une facture
 const getFactureDetailsController = async (req, res) => {
     try {
@@ -51,10 +50,9 @@ const getFactureDetailsController = async (req, res) => {
 
 const getFacturesParkingDuJourController = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const { page = 1, limit = 10, numero_facture } = req.query;
 
-        const result = await factureParkingService.getFacturesParkingDuJour(page, limit);
+        const result = await factureParkingService.getFacturesParkingDuJour(numero_facture, page, limit);
         res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

@@ -450,6 +450,7 @@ const fetchRendezVousConfirmes = async (date_debut, date_fin, page = 1, limit = 
         // Filtre avec la gestion des dates
         const filter = {
             statut: 'Confirmé',
+            intervention: false, 
             date_confirmation: { $gte: date_debut, $lte: date_fin }
         };
 

@@ -26,6 +26,10 @@ exports.getAllServices = async (page = 1, limit = 10) => {
   }
 };
 
+exports.getAllServicesScroll = async () => {
+  return await Service.find();
+};
+
 exports.getServiceById = async (id) => {
   return await Service.findById(id);
 };
