@@ -5,18 +5,18 @@ const verifyToken = require('../middleware/authMiddleware');
 const { checkManagerRole } = require('../middleware/roleMiddleware'); // Middleware pour vérifier que l'utilisateur est un manager
  
 // Ajouter une compétence
-router.post('/', verifyToken , checkManagerRole , createCompetence);
+router.post('/', createCompetence);
 
 // Récupérer toutes les compétences
 router.get('/', getCompetences);
 
 // Récupérer une compétence par ID
-router.get('/:id', verifyToken , checkManagerRole , getCompetence);
+router.get('/:id', getCompetence);
 
 // Mettre à jour une compétence
-router.put('/:id', verifyToken , checkManagerRole , updateCompetenceDetails);
+router.put('/:id', updateCompetenceDetails);
 
 // Supprimer une compétence
-router.delete('/:id', verifyToken, checkManagerRole , deleteCompetenceRecord);
+router.delete('/:id', deleteCompetenceRecord);
 
 module.exports = router;

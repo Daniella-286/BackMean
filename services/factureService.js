@@ -85,34 +85,11 @@ const addDetailFacture2 = async (factureId, interventionId) => {
         let totalPieces = 0;
         const details = [];
 
-        const intervention = await Intervention.findById(interventionId).populate({
-            path: 'id_rdv',
-            populate: { path: 'id_demande' }
-        });
-
+        // Vérifier si l'intervention existe
+        const intervention = await Intervention.findById(interventionId);
         if (!intervention) throw new Error("Intervention introuvable.");
 
-        const id_demande = intervention.id_rdv.id_demande;
-
-        // Récupérer les pièces du devis (DevisPiece)
-        const piecesDevis = await DevisPiece.find({ id_demande: id_demande });
-
-        for (const piece of piecesDevis) {
-            const infoPiece = await Piece.findById(piece.id_piece);
-            if (!infoPiece) continue;
-
-            const sousTotal = piece.quantite * piece.prix_unitaire;
-            totalPieces += sousTotal;
-
-            details.push({
-                id_facture: factureId,
-                id_piece: piece.id_piece,
-                quantite: piece.quantite,
-                prix_unitaire: piece.prix_unitaire,
-            });
-        }
-
-        // Récupérer les pièces réellement utilisées lors de l'intervention (PieceUtilise)
+        // Récupérer uniquement les pièces réellement utilisées (PieceUtilise)
         const piecesUtilisees = await PieceUtilise.find({ id_intervention: interventionId });
 
         for (const piece of piecesUtilisees) {
@@ -131,7 +108,9 @@ const addDetailFacture2 = async (factureId, interventionId) => {
         }
 
         // Insérer toutes les pièces dans DetailFacture2
-        await DetailFacture2.insertMany(details);
+        if (details.length > 0) {
+            await DetailFacture2.insertMany(details);
+        }
 
         return totalPieces;
     } catch (error) {
