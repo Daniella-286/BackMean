@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listerVehiculesController , ajouterVehiculeController , updateVehiculeController , supprimerVehiculeController } = require('../controllers/vehiculeController'); // IMPORTATION CORRECTE
+const { listerVehiculesController , ajouterVehiculeController , updateVehiculeController , supprimerVehiculeController , listerVehiculesParClientSansPaginationController } = require('../controllers/vehiculeController'); // IMPORTATION CORRECTE
 const verifyToken = require('../middleware/authMiddleware'); 
 
 // Route protégée pour ajouter un véhicule
@@ -8,6 +8,8 @@ router.post('/ajouter-vehicules', verifyToken , ajouterVehiculeController);
 
 // Route pour lister les véhicules d'un client connecté
 router.get('/', verifyToken , listerVehiculesController);
+
+router.get('/listes', verifyToken , listerVehiculesParClientSansPaginationController);
 
 // Route pour mettre à jour un véhicule par son ID
 router.put('/:id', updateVehiculeController);
