@@ -1,4 +1,4 @@
-const { ajouterVehicule , listerVehiculesParClient , updateVehicule , supprimerVehicule } = require('../services/vehiculeService');
+const { ajouterVehicule , listerVehiculesParClient , updateVehicule , supprimerVehicule , listerVehiculesParClientSansPagination } = require('../services/vehiculeService');
 
 // Contrôleur pour ajouter un véhicule
 const ajouterVehiculeController = async (req, res) => {
@@ -33,6 +33,20 @@ const listerVehiculesController = async (req, res) => {
   }
 };
 
+const listerVehiculesParClientSansPaginationController = async (req, res) => {
+  try {
+    const { id_client } = req.params;  // Récupérer l'id du client depuis les paramètres de la route
+    
+    // Appeler la fonction de service pour récupérer les véhicules
+    const vehicules = await listerVehiculesParClientSansPagination(id_client);
+    
+    res.status(200).json(vehicules);  // Retourner la liste des véhicules en réponse
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des véhicules', error: error.message });
+  }
+};
+
+
 
 const updateVehiculeController = async (req, res) => {
   try {
@@ -66,5 +80,6 @@ module.exports = {
   ajouterVehiculeController,
   listerVehiculesController,
   updateVehiculeController,
-  supprimerVehiculeController
+  supprimerVehiculeController,
+  listerVehiculesParClientSansPaginationController
 };
