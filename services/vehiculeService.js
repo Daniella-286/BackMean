@@ -55,6 +55,23 @@ const listerVehiculesParClient = async (id_client, page = 1, limit = 10, search 
   }
 };
 
+
+const listerVehiculesParClientSansPagination = async (id_client) => {
+  try {
+    // Récupérer tous les véhicules du client
+    const vehicules = await Vehicule.find({ id_client })
+      .populate('id_modele', 'nom_modele') // Populate pour récupérer le nom du modèle
+      .populate('id_marque', 'nom_marque') // Populate pour récupérer le nom de la marque
+      .exec();
+
+    return vehicules;
+  } catch (error) {
+    throw new Error('Erreur lors de la récupération des véhicules : ' + error.message);
+  }
+};
+
+
+
 // Mettre à jour un véhicule par son ID
 const updateVehicule = async (id, data) => {
   try {
@@ -79,6 +96,6 @@ const supprimerVehicule = async (id) => {
   }
 };
 
-module.exports = { ajouterVehicule , listerVehiculesParClient , updateVehicule , supprimerVehicule};
+module.exports = { ajouterVehicule , listerVehiculesParClient , updateVehicule , supprimerVehicule , listerVehiculesParClientSansPagination};
 
 
