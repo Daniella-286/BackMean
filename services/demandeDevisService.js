@@ -169,13 +169,14 @@ const obtenirDemandesEnAttente = async (date_debut, date_fin, page = 1, limit = 
             date_demande: { $gte: date_debut, $lte: date_fin }
         });
 
-        // Pagination
+        // Récupérer les demandes avec les informations des véhicules, services et clients
         const demandes = await DemandeDevis.find({
             statut: 'En attente',
             date_demande: { $gte: date_debut, $lte: date_fin }
         })
             .populate('id_vehicule', 'immatriculation')
             .populate('id_service', 'nom_service')
+            .populate('id_client', 'nom prenom') // Ajout pour récupérer les informations du client
             .sort({ date_demande: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
@@ -192,6 +193,10 @@ const obtenirDemandesEnAttente = async (date_debut, date_fin, page = 1, limit = 
                 date_demande: demande.date_demande,
                 probleme: demande.probleme,
                 statut: demande.statut,
+                client: {
+                    nom: demande.id_client?.nom || "Non spécifié",
+                    prenom: demande.id_client?.prenom || "Non spécifié"
+                },
                 vehicule: {
                     immatriculation: demande.id_vehicule?.immatriculation || "Non spécifié"
                 },
