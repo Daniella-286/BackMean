@@ -18,7 +18,7 @@ const listerVehiculesController = async (req, res) => {
     const id_client = req.user.id;
     
     // Récupérer les paramètres de requête pour la pagination et la recherche
-    const { page = 1, limit = 3, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "" } = req.query;
 
     // Appeler le service pour récupérer les véhicules
     const vehicules = await listerVehiculesParClient(id_client, parseInt(page), parseInt(limit), search);
