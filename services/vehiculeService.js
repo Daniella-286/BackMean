@@ -29,6 +29,9 @@ const listerVehiculesParClient = async (id_client, page = 1, limit = 10, search 
       ? { id_client, immatriculation: { $regex: search, $options: 'i' } } // Recherche par immatriculation
       : { id_client }; // Si aucune recherche, on récupère tous les véhicules du client
 
+    // Récupérer le nombre total de véhicules correspondant au filtre
+    const totalVehicules = await Vehicule.countDocuments(searchFilter);
+
     // Récupérer les véhicules avec les informations du modèle et de la marque, avec pagination
     const vehicules = await Vehicule.find(searchFilter)
       .skip(skip)
@@ -37,7 +40,16 @@ const listerVehiculesParClient = async (id_client, page = 1, limit = 10, search 
       .populate('id_marque', 'nom_marque') // Populate pour récupérer le nom de la marque
       .exec();
 
-    return vehicules;
+    // Calculer le nombre total de pages
+    const totalPages = Math.ceil(totalVehicules / limit);
+
+    return {
+      vehicules,
+      totalVehicules,
+      totalPages,
+      page,
+      limit
+    };
   } catch (error) {
     throw new Error('Erreur lors de la récupération des véhicules : ' + error.message);
   }
