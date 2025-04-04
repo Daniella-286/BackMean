@@ -35,7 +35,7 @@ const listerVehiculesController = async (req, res) => {
 
 const listerVehiculesParClientSansPaginationController = async (req, res) => {
   try {
-    const { id_client } = req.params;  // Récupérer l'id du client depuis les paramètres de la route
+    const { id_client } = req.user.id;  // Récupérer l'id du client depuis les paramètres de la route
     
     // Appeler la fonction de service pour récupérer les véhicules
     const vehicules = await listerVehiculesParClientSansPagination(id_client);
